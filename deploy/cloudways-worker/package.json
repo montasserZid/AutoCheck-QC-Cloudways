@@ -1,0 +1,23 @@
+{
+  "name": "autocheck-cloudways-extraction-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AutoCheck browser extraction worker (Puppeteer/Chrome) for the Cloudways host.",
+  "main": "dist/deploy/cloudways-worker/src/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/deploy/cloudways-worker/src/main.js",
+    "stop": "bash stop-worker.sh",
+    "restart": "bash restart-worker.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "puppeteer-core": "24.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.1",
+    "typescript": "^5.9.2"
+  }
+}

@@ -1,0 +1,612 @@
+{
+  "nodes": [
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema",
+      "label": "202609270001_initial_operational_schema.sql",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": null,
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_public_set_updated_at",
+      "label": "public.set_updated_at()",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L4",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_public_vehicles",
+      "label": "public.vehicles",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L17",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_vehicles_vin_unique_idx",
+      "label": "vehicles_vin_unique_idx",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L34",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_public_listings",
+      "label": "public.listings",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L38",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_listings_vehicle_id_idx",
+      "label": "listings_vehicle_id_idx",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L83",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_public_reports",
+      "label": "public.reports",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L85",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_reports_vehicle_id_idx",
+      "label": "reports_vehicle_id_idx",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L113",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_reports_status_created_at_idx",
+      "label": "reports_status_created_at_idx",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L114",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_public_inspection_requests",
+      "label": "public.inspection_requests",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L118",
+      "_origin": "ast"
+    },
+    {
+      "id": "public",
+      "label": "public",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_inspection_requests_listing_id_idx",
+      "label": "inspection_requests_listing_id_idx",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L150",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_inspection_requests_vehicle_id_idx",
+      "label": "inspection_requests_vehicle_id_idx",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L152",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_inspection_requests_report_id_idx",
+      "label": "inspection_requests_report_id_idx",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L154",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_inspection_requests_status_created_at_idx",
+      "label": "inspection_requests_status_created_at_idx",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L157",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_public_contact_messages",
+      "label": "public.contact_messages",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L161",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_contact_messages_open_created_at_idx",
+      "label": "contact_messages_open_created_at_idx",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L174",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_vehicles_set_updated_at",
+      "label": "vehicles_set_updated_at",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L178",
+      "_origin": "ast"
+    },
+    {
+      "id": "public_set_updated_at",
+      "label": "public.set_updated_at",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_listings_set_updated_at",
+      "label": "listings_set_updated_at",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L182",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_reports_set_updated_at",
+      "label": "reports_set_updated_at",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L186",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_inspection_requests_set_updated_at",
+      "label": "inspection_requests_set_updated_at",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L190",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270001_initial_operational_schema_contact_messages_set_updated_at",
+      "label": "contact_messages_set_updated_at",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L194",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270002_use_clock_timestamp_for_updated_at",
+      "label": "202609270002_use_clock_timestamp_for_updated_at.sql",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270002_use_clock_timestamp_for_updated_at.sql",
+      "source_location": null,
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_migrations_202609270002_use_clock_timestamp_for_updated_at_public_set_updated_at",
+      "label": "public.set_updated_at()",
+      "file_type": "code",
+      "source_file": "supabase/migrations/202609270002_use_clock_timestamp_for_updated_at.sql",
+      "source_location": "L2",
+      "_origin": "ast"
+    },
+    {
+      "id": "supabase_tests_001_initial_operational_schema",
+      "label": "001_initial_operational_schema.sql",
+      "file_type": "code",
+      "source_file": "supabase/tests/001_initial_operational_schema.sql",
+      "source_location": null,
+      "_origin": "ast"
+    }
+  ],
+  "edges": [
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_set_updated_at",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_vehicles",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_vehicles_vin_unique_idx",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L34",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_vehicles_vin_unique_idx",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_vehicles",
+      "relation": "indexes",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L34",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_listings",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L38",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_public_listings",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_vehicles",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L38",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_listings_vehicle_id_idx",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L83",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_listings_vehicle_id_idx",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_listings",
+      "relation": "indexes",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L83",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_reports",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L85",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_public_reports",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_listings",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L85",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_reports_vehicle_id_idx",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L113",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_reports_vehicle_id_idx",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_reports",
+      "relation": "indexes",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L113",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_reports_status_created_at_idx",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L114",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_reports_status_created_at_idx",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_reports",
+      "relation": "indexes",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L114",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_inspection_requests",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L118",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_public_inspection_requests",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_reports",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L118",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_public_inspection_requests",
+      "target": "public",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L118",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_inspection_requests_listing_id_idx",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L150",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_inspection_requests_listing_id_idx",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_inspection_requests",
+      "relation": "indexes",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L150",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_inspection_requests_vehicle_id_idx",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L152",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_inspection_requests_vehicle_id_idx",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_inspection_requests",
+      "relation": "indexes",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L152",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_inspection_requests_report_id_idx",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L154",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_inspection_requests_report_id_idx",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_inspection_requests",
+      "relation": "indexes",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L154",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_inspection_requests_status_created_at_idx",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L157",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_inspection_requests_status_created_at_idx",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_inspection_requests",
+      "relation": "indexes",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L157",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_contact_messages",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L161",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_contact_messages_open_created_at_idx",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L174",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_contact_messages_open_created_at_idx",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_public_contact_messages",
+      "relation": "indexes",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L174",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_vehicles_set_updated_at",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L178",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_vehicles_set_updated_at",
+      "target": "public_set_updated_at",
+      "relation": "triggers",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L178",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_listings_set_updated_at",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L182",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_listings_set_updated_at",
+      "target": "public_set_updated_at",
+      "relation": "triggers",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L182",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_reports_set_updated_at",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L186",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_reports_set_updated_at",
+      "target": "public_set_updated_at",
+      "relation": "triggers",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L186",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_inspection_requests_set_updated_at",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L190",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_inspection_requests_set_updated_at",
+      "target": "public_set_updated_at",
+      "relation": "triggers",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L190",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema",
+      "target": "supabase_migrations_202609270001_initial_operational_schema_contact_messages_set_updated_at",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L194",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270001_initial_operational_schema_contact_messages_set_updated_at",
+      "target": "public_set_updated_at",
+      "relation": "triggers",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270001_initial_operational_schema.sql",
+      "source_location": "L194",
+      "weight": 1.0,
+      "_origin": "ast"
+    },
+    {
+      "source": "supabase_migrations_202609270002_use_clock_timestamp_for_updated_at",
+      "target": "supabase_migrations_202609270002_use_clock_timestamp_for_updated_at_public_set_updated_at",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "supabase/migrations/202609270002_use_clock_timestamp_for_updated_at.sql",
+      "source_location": "L2",
+      "weight": 1.0,
+      "_origin": "ast"
+    }
+  ],
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "failed_sources": [],
+  "extracted_sources": [
+    "supabase\\migrations\\202609270001_initial_operational_schema.sql",
+    "supabase\\migrations\\202609270002_use_clock_timestamp_for_updated_at.sql",
+    "supabase\\tests\\001_initial_operational_schema.sql"
+  ]
+}

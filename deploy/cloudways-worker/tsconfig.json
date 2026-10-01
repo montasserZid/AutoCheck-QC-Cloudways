@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "types": ["node"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": false,
+    "declaration": false,
+    "sourceMap": false,
+    "incremental": false,
+    "outDir": "./dist",
+    "rootDir": "../..",
+    "plugins": []
+  },
+  "include": [
+    "src/**/*.ts",
+    "../../src/server/listing/facebook.ts",
+    "../../src/server/listing/secureFetch.ts",
+    "../../src/lib/listingUrlExtraction.ts",
+    "../../src/lib/listingExtraction.ts",
+    "../../src/types/domain.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "./output/tests",
+    "rootDir": ".",
+    "noEmit": false,
+    "incremental": false,
+    "plugins": []
+  },
+  "include": ["tests/domain.test.ts", "tests/workerBoundary.test.ts"],
+  "exclude": ["node_modules", ".next", "output", "deploy/cloudways-worker/node_modules"]
+}

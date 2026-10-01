@@ -1,0 +1,32 @@
+{
+  "name": "autocheck-qc",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test output/tests/tests/"
+  },
+  "dependencies": {
+    "@sparticuz/chromium": "141.0.0",
+    "@supabase/supabase-js": "^2.117.2",
+    "lucide-react": "^1.44.0",
+    "next": "^15.5.2",
+    "puppeteer-core": "24.23.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "overrides": {
+    "postcss": "^8.5.23"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.1",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "eslint": "^9.35.0",
+    "eslint-config-next": "^15.5.2",
+    "typescript": "^5.9.2"
+  }
+}

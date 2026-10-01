@@ -1,0 +1,245 @@
+{
+  "generated_at": "2026-09-30T19:57:54.649175+00:00",
+  "nodes": {
+    "next_config": {
+      "code_fingerprint": "3c1bafdb6fc413bd91f115c9e7980d24bbf5af82d5bc1241f2f31755a2deb519",
+      "label": "next.config.ts",
+      "last": "2026-09-29T20:06:33.944102+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-29T20:06:33.944102+00:00",
+          "outcome": "useful",
+          "q": "Continue the exact Vercel Puppeteer packaging investigation and stop transitive dependency whack-a-mole."
+        }
+      ],
+      "score": 0.977295675,
+      "source_file": "next.config.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "package": {
+      "code_fingerprint": "2c69b3975555457efeee2a83b24f0732c7d37216ffa9aff1e1d2a61a23cb0ea9",
+      "label": "package.json",
+      "last": "2026-09-29T19:46:13.916315+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-29T19:46:13.916315+00:00",
+          "outcome": "useful",
+          "q": "Why did Vercel omit Puppeteer's browser helper package?"
+        },
+        {
+          "date": "2026-09-27T19:02:12.833625+00:00",
+          "outcome": "useful",
+          "q": "Identify architecture and utility placement for the AutoCheck QC Supabase connection"
+        }
+      ],
+      "score": 1.909176426,
+      "source_file": "package.json",
+      "status": "preferred",
+      "uses": 2
+    },
+    "src_app_layout": {
+      "code_fingerprint": "9298e4b0bef4a99952b884e5780b6d789a8305f75a7dff59f0ccf419763611df",
+      "label": "layout.tsx",
+      "last": "2026-09-27T19:02:12.833625+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-27T19:02:12.833625+00:00",
+          "outcome": "useful",
+          "q": "Identify architecture and utility placement for the AutoCheck QC Supabase connection"
+        }
+      ],
+      "score": 0.932199549,
+      "source_file": "src/app/layout.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_components_inspectionbookingform_inspectionbookingform": {
+      "code_fingerprint": "1a010f8877cb58d52409f5bb32985ccf8994ca38f4b5deba96eea47e2d5b1c51",
+      "label": "InspectionBookingForm()",
+      "last": "2026-09-25T09:37:09.285972+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-25T09:37:09.285972+00:00",
+          "outcome": "useful",
+          "q": "Initial project synchronization: understand current AutoCheck QC architecture and customer flow using Graphify first."
+        }
+      ],
+      "score": 0.882069342,
+      "source_file": "src/components/InspectionBookingForm.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_components_reportexperience_reportexperience": {
+      "code_fingerprint": "5d7c9a1ba0c6c1070cefe8352853f9b81e390dee4d616e00b9feaf7a7f802b30",
+      "label": "ReportExperience()",
+      "last": "2026-09-25T09:37:09.285972+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-25T09:37:09.285972+00:00",
+          "outcome": "useful",
+          "q": "Initial project synchronization: understand current AutoCheck QC architecture and customer flow using Graphify first."
+        }
+      ],
+      "score": 0.882069342,
+      "source_file": "src/components/ReportExperience.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_components_reportview_reportview": {
+      "code_fingerprint": "79b07cbc3b712248240824f16822e6011cc7f26b69f098a8ad996191375a2cd6",
+      "label": "ReportView()",
+      "last": "2026-09-25T09:37:09.285972+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-25T09:37:09.285972+00:00",
+          "outcome": "useful",
+          "q": "Initial project synchronization: understand current AutoCheck QC architecture and customer flow using Graphify first."
+        }
+      ],
+      "score": 0.882069342,
+      "source_file": "src/components/ReportView.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_components_vehicleintakeflow_vehicleintakeflow": {
+      "code_fingerprint": "7d518691359d42cf8f4a76a3c320b3ee7a5704837411a928a2b229819280629d",
+      "label": "VehicleIntakeFlow()",
+      "last": "2026-09-25T09:37:09.285972+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-25T09:37:09.285972+00:00",
+          "outcome": "useful",
+          "q": "Initial project synchronization: understand current AutoCheck QC architecture and customer flow using Graphify first."
+        }
+      ],
+      "score": 0.882069342,
+      "source_file": "src/components/VehicleIntakeFlow.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_lib_listingextraction_extractlisting": {
+      "code_fingerprint": "a109925bdf18035d0eaa1d59817f807d23dbdb711723b5f00a573965c80e55db",
+      "label": "extractListing()",
+      "last": "2026-09-25T09:37:09.285972+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-25T09:37:09.285972+00:00",
+          "outcome": "useful",
+          "q": "Initial project synchronization: understand current AutoCheck QC architecture and customer flow using Graphify first."
+        }
+      ],
+      "score": 0.882069342,
+      "source_file": "src/lib/listingExtraction.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_lib_localstorage_saveintake": {
+      "code_fingerprint": "aaf62f1d275b116bd2878d24fe5f4ad9dcb68ca54227d1e8fbfc94eb9c853abf",
+      "label": "saveIntake()",
+      "last": "2026-09-25T09:37:09.285972+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-25T09:37:09.285972+00:00",
+          "outcome": "useful",
+          "q": "Initial project synchronization: understand current AutoCheck QC architecture and customer flow using Graphify first."
+        }
+      ],
+      "score": 0.882069342,
+      "source_file": "src/lib/localStorage.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_lib_localstorage_savereporttype": {
+      "code_fingerprint": "aaf62f1d275b116bd2878d24fe5f4ad9dcb68ca54227d1e8fbfc94eb9c853abf",
+      "label": "saveReportType()",
+      "last": "2026-09-25T09:37:09.285972+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-25T09:37:09.285972+00:00",
+          "outcome": "useful",
+          "q": "Initial project synchronization: understand current AutoCheck QC architecture and customer flow using Graphify first."
+        }
+      ],
+      "score": 0.882069342,
+      "source_file": "src/lib/localStorage.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_lib_reportengine_generatedemoreport": {
+      "code_fingerprint": "f734eca1df71c121e120bd5957844089533ad95b77b9e4978228e5a2407a42bd",
+      "label": "generateDemoReport()",
+      "last": "2026-09-25T09:37:09.285972+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-25T09:37:09.285972+00:00",
+          "outcome": "useful",
+          "q": "Initial project synchronization: understand current AutoCheck QC architecture and customer flow using Graphify first."
+        }
+      ],
+      "score": 0.882069342,
+      "source_file": "src/lib/reportEngine.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_lib_validation_validateintake": {
+      "code_fingerprint": "986f2eb11f9243df19943610f306221b2d9c602f2936b90c73f1773bec08f8f3",
+      "label": "validateIntake()",
+      "last": "2026-09-25T09:37:09.285972+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-25T09:37:09.285972+00:00",
+          "outcome": "useful",
+          "q": "Initial project synchronization: understand current AutoCheck QC architecture and customer flow using Graphify first."
+        }
+      ],
+      "score": 0.882069342,
+      "source_file": "src/lib/validation.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_lib_vehicleknowledge_getvehiclechecklist": {
+      "code_fingerprint": "1663a889c008cef38516aac7d942f40d0b18f973563308fe5ec5da38232727aa",
+      "label": "getVehicleChecklist()",
+      "last": "2026-09-25T09:37:09.285972+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-25T09:37:09.285972+00:00",
+          "outcome": "useful",
+          "q": "Initial project synchronization: understand current AutoCheck QC architecture and customer flow using Graphify first."
+        }
+      ],
+      "score": 0.882069342,
+      "source_file": "src/lib/vehicleKnowledge.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "src_server_listing_facebook": {
+      "code_fingerprint": "f573dd765eb6eb1de558715bc5ad16139e8b474c104aa62696c42b8fb0ce2dc2",
+      "label": "facebook.ts",
+      "last": "2026-09-29T20:46:41.780483+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-29T20:46:41.780483+00:00",
+          "outcome": "useful",
+          "q": "Diagnose Vercel Target closed at Facebook render-wait without a speculative fix."
+        },
+        {
+          "date": "2026-09-29T20:31:56.842621+00:00",
+          "outcome": "useful",
+          "q": "Fix the Vercel detached frame at render-wait only."
+        },
+        {
+          "date": "2026-09-29T20:22:44.334227+00:00",
+          "outcome": "useful",
+          "q": "Fix the Vercel Facebook detached-frame race without changing packaging or extraction semantics."
+        }
+      ],
+      "score": 2.933168232,
+      "source_file": "src/server/listing/facebook.ts",
+      "status": "preferred",
+      "uses": 3
+    }
+  },
+  "version": 1
+}
