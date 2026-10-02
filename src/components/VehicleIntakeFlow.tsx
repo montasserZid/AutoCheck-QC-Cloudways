@@ -22,6 +22,7 @@ import {
   writeLocal,
   saveIntake,
   saveReportType,
+  saveSubmittedIntakeContext,
 } from "@/lib/localStorage";
 import {
   validateIntake,
@@ -29,6 +30,7 @@ import {
   validListingUrl,
 } from "@/lib/validation";
 import { vehicleTitle } from "@/lib/reportEngine";
+import { finalizeIntake } from "@/lib/intakeFinalization";
 import { ProgressSteps } from "./ProgressSteps";
 import { PricingCards } from "./PricingCards";
 
@@ -39,6 +41,7 @@ interface Draft {
   method: Method;
   found: string[];
   uncertain: string[];
+  submissionKey?: string;
 }
 const methods = [
   { id: "text", label: "Ad text", icon: FileText },
@@ -58,7 +61,11 @@ export function VehicleIntakeFlow() {
   const [urlStatus, setUrlStatus] = useState<"idle" | "retrieving">("idle");
   const [ready, setReady] = useState(false);
   const [storageOk, setStorageOk] = useState(true);
+  const [submissionKey, setSubmissionKey] = useState<string>();
+  const [finalizing, setFinalizing] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
+  const submissionKeyRef = useRef<string | undefined>(undefined);
+  const finalizingRef = useRef(false);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const stored = getStoredIntake();
@@ -86,6 +93,7 @@ export function VehicleIntakeFlow() {
       removeLocal("intake");
       removeLocal("report");
       removeLocal("report-type");
+      removeLocal("submitted-intake");
       consumeParams("new");
     } else if (params.get("step") === "choose" && stored) {
       setForm(stored);
@@ -104,15 +112,17 @@ export function VehicleIntakeFlow() {
       );
       setFound(draft.found ?? []);
       setUncertain(draft.uncertain ?? []);
+      setSubmissionKey(draft.submissionKey);
+      submissionKeyRef.current = draft.submissionKey;
     }
     setReady(true);
   }, []);
   useEffect(() => {
     if (ready)
       setStorageOk(
-        writeLocal("intake-draft", { form, step, method, found, uncertain }),
+        writeLocal("intake-draft", { form, step, method, found, uncertain, submissionKey }),
       );
-  }, [form, step, method, found, uncertain, ready]);
+  }, [form, step, method, found, uncertain, submissionKey, ready]);
   function changeStep(next: number) {
     setStep(next);
     setErrors({});
@@ -125,6 +135,8 @@ export function VehicleIntakeFlow() {
     value: VehicleIntake[K],
   ) {
     setForm((f) => ({ ...f, [key]: value }));
+    setSubmissionKey(undefined);
+    submissionKeyRef.current = undefined;
     setFound((keys) => keys.filter((field) => field !== key));
     setUncertain((keys) => keys.filter((field) => field !== key));
     setErrors((e) => {
@@ -224,7 +236,7 @@ export function VehicleIntakeFlow() {
     setUncertain(result.uncertain);
     changeStep(1);
   }
-  function review(event: FormEvent) {
+  async function review(event: FormEvent) {
     event.preventDefault();
     const next = validateIntake(form);
     setErrors(next);
@@ -238,8 +250,27 @@ export function VehicleIntakeFlow() {
       );
       return;
     }
-    saveIntake({ ...form, submittedAt: new Date().toISOString() });
-    changeStep(2);
+    if (finalizingRef.current) return;
+    const key = submissionKeyRef.current ?? crypto.randomUUID();
+    submissionKeyRef.current = key;
+    if (!submissionKey) setSubmissionKey(key);
+    const submitted = { ...form, submittedAt: new Date().toISOString() };
+    finalizingRef.current = true;
+    setFinalizing(true);
+    setNotice("Saving your reviewed listing...");
+    try {
+      const result = await finalizeIntake(submitted, key);
+      saveIntake(submitted);
+      saveSubmittedIntakeContext(result);
+      setSubmissionKey(undefined);
+      submissionKeyRef.current = undefined;
+      changeStep(2);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "We couldn't save this listing. Please try again.");
+    } finally {
+      finalizingRef.current = false;
+      setFinalizing(false);
+    }
   }
   function status(key: keyof VehicleIntake) {
     const value = form[key];
@@ -627,8 +658,8 @@ export function VehicleIntakeFlow() {
                   <ArrowLeft size={18} />
                   Back
                 </button>
-                <button className="button button-primary" type="submit">
-                  Confirm & Continue
+                <button className="button button-primary" type="submit" disabled={finalizing}>
+                  {finalizing ? "Saving reviewed listing..." : "Confirm & Continue"}
                   <ArrowRight size={18} />
                 </button>
               </div>

@@ -5,6 +5,7 @@ import type {
   VehicleIntake,
 } from "../types/domain";
 import { emptyIntake } from "./listingExtraction";
+import type { SubmittedIntakeContext } from "./intakeFinalization";
 const prefix = "autocheck-qc:v2:";
 const memory = new Map<string, unknown>();
 export function readLocal<T>(key: string): T | null {
@@ -35,6 +36,14 @@ export function removeLocal(key: string): boolean {
   }
 }
 export const saveIntake = (v: VehicleIntake) => writeLocal("intake", v);
+export const saveSubmittedIntakeContext = (v: SubmittedIntakeContext) =>
+  writeLocal("submitted-intake", v);
+export function getSubmittedIntakeContext(): SubmittedIntakeContext | null {
+  const value = readLocal<SubmittedIntakeContext>("submitted-intake");
+  return value && typeof value.vehicleId === "string" && typeof value.listingId === "string" && typeof value.submissionKey === "string"
+    ? value
+    : null;
+}
 export function getStoredIntake(): VehicleIntake | null {
   const v = readLocal<VehicleIntake>("intake");
   if (

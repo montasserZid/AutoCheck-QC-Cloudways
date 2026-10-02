@@ -358,6 +358,49 @@ Free vs Paid impact:
 
 AI usage: ZERO
 
+## 2026-10-02 - Phase 2A.2 Finalized Vehicle + Listing Persistence
+
+Objective:
+- Persist the user-reviewed `VehicleIntake` before package selection, without re-fetching a listing or changing any extraction path.
+
+Implementation status:
+- Implemented in source; production Supabase was not changed from this workspace.
+
+Files changed:
+- Added the explicit finalization DTO/validator, client finalization helper, safe repository adapter, focused route handler, API route, migration, and migration test.
+- Updated the server operational repository, intake flow, localStorage helpers, and deterministic test suite.
+
+Migration/database changes:
+- `202610020001_finalize_vehicle_listing.sql` adds nullable `listings.submission_key` with a partial unique index and `public.finalize_vehicle_listing(uuid, jsonb, jsonb)`.
+- The security-definer RPC takes an advisory transaction lock per submission key, replays an existing listing for that key, reuses an existing VIN vehicle only when the reviewed identity does not conflict, and inserts vehicle/listing in one database transaction.
+- Execute is revoked from public roles and granted only to `service_role`; existing forced RLS, deny policies, and browser restrictions are unchanged.
+
+API changes:
+- Added `POST /api/intakes/finalize`. It accepts only JSON below 48 KB, validates an explicit allowlisted intake DTO plus a UUIDv4 `submissionKey`, and returns `{ ok, vehicleId, listingId, replayed }` with `Cache-Control: no-store`.
+
+Client changes:
+- `VehicleIntakeFlow` validates locally, finalizes to the server, stores `autocheck-qc:v2:submitted-intake` containing `{ vehicleId, listingId, submissionKey }`, then continues to package selection.
+- A failed submission leaves the existing draft untouched. The pending submission key is retained in the draft for refresh/retry; the confirm control is disabled while the request is active.
+
+Security implications:
+- The browser never receives Supabase credentials and cannot select target tables/IDs/metadata. Metadata is constructed server-side from a bounded allowlist.
+- Non-CAD reviewed prices are stored only as `{ value, currency }` metadata and never placed in `asking_price_cad`.
+- Finalization performs no URL fetch, Bright Data request, or extraction work.
+
+Tests:
+- Added DTO, route, repository, client-contract, and SQL transaction/RLS coverage for invalid input, response replay, VIN conflict/reuse, same-VIN multiple listings, and listing-failure rollback.
+- `npm test` passed: 196/196. `npm run typecheck` passed.
+- Lint and production build are blocked by the managed sandbox's host-level `EPERM: lstat C:\Users\novitek` while ESLint/Next resolves dependencies; this is an environment failure, not a code failure.
+
+Graphify status:
+- Used the existing graph for navigation. No rebuild was performed. A fresh incremental update would include this append-only documentation file and require semantic extraction; source code remains the final implementation record.
+
+Known debt:
+- Apply the migration and run the SQL migration tests against the target Supabase project before enabling the endpoint in production. Report persistence remains intentionally absent.
+
+Next step:
+- REPORT PERSISTENCE
+
 Supabase impact:
 - No Supabase schema or persistence changes.
 

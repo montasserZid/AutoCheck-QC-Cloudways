@@ -4,6 +4,7 @@ import type {
   ReportPackage,
   VehicleIntake,
 } from "@/types/domain";
+import type { FinalizedIntakeValue } from "@/lib/finalizedIntake";
 
 export type ListingSourceType = "text" | "url" | "images" | "manual" | "unknown";
 
@@ -13,6 +14,12 @@ export interface StoredOperationalRecord {
 }
 
 export interface OperationalRepository {
+  finalizeIntake(input: FinalizedIntakeValue): Promise<{
+    vehicleId: string;
+    listingId: string;
+    replayed: boolean;
+  }>;
+
   createListing(input: {
     intake: VehicleIntake;
     sourceType: ListingSourceType;

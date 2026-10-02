@@ -24,6 +24,10 @@ import {
 } from "../src/lib/contactSubmission";
 import { createContactMessageRepository } from "../src/lib/data/contactMessageRepository";
 import { createContactPostHandler } from "../src/server/contact/handler";
+import { createFinalizeIntakePostHandler } from "../src/server/intakes/handler";
+import { FINALIZED_INTAKE_LIMITS, validateFinalizedIntake } from "../src/lib/finalizedIntake";
+import { createFinalizedIntakeRepository } from "../src/lib/data/finalizedIntakeRepository";
+import { finalizeIntake } from "../src/lib/intakeFinalization";
 import {
   createListingExtractionPostHandler,
   serializeListingFetchErrorForLog,
@@ -1849,4 +1853,75 @@ test("contact client resolves only after success and preserves safe failures", a
     ),
     /Please retry this message/,
   );
+});
+
+const { submittedAt: _testSubmittedAt, ...finalizedBase } = emptyIntake;
+const finalizedRequest = {
+  submissionKey: "550e8400-e29b-41d4-a716-446655440000",
+  intake: {
+    ...finalizedBase,
+    make: "  Honda  ", model: " Civic ", year: 2018, trim: " EX ",
+    listingUrl: "https://example.test/listing/1", listingText: "  2018 Honda Civic  ",
+    mileageKm: 120000, askingPriceCad: 12000, priceCurrency: "cad", city: "Montreal",
+    vin: "2hgfb2f50fh123456", sellerDescription: "  Seller note  ",
+  },
+};
+
+test("finalized intake DTO validates and normalizes an explicit reviewed payload", () => {
+  const result = validateFinalizedIntake(finalizedRequest);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.value.intake.make, "Honda");
+  assert.equal(result.value.intake.priceCurrency, "CAD");
+  assert.equal(result.value.intake.vin, "2HGFB2F50FH123456");
+  assert.equal(result.value.intake.sellerDescription, "Seller note");
+});
+
+test("finalized intake DTO rejects unsafe or invalid values", () => {
+  for (const request of [
+    { ...finalizedRequest, intake: { ...finalizedRequest.intake, vin: "bad" } },
+    { ...finalizedRequest, intake: { ...finalizedRequest.intake, year: 1979 } },
+    { ...finalizedRequest, intake: { ...finalizedRequest.intake, listingUrl: "javascript:alert(1)" } },
+    { ...finalizedRequest, intake: { ...finalizedRequest.intake, mileageKm: -1 } },
+    { ...finalizedRequest, intake: { ...finalizedRequest.intake, make: "x".repeat(101) } },
+    { ...finalizedRequest, intake: { ...finalizedRequest.intake, arbitraryMetadata: { unsafe: true } } },
+  ]) assert.equal(validateFinalizedIntake(request).ok, false);
+});
+
+test("finalization API enforces JSON/body limits and returns safe persistence failures", async () => {
+  let calls = 0;
+  const handler = createFinalizeIntakePostHandler({
+    async finalizeIntake() { calls++; return { vehicleId: "vehicle-1", listingId: "listing-1", replayed: false }; },
+  }, () => undefined);
+  for (const request of [
+    new Request("http://localhost/api/intakes/finalize", { method: "POST", body: JSON.stringify(finalizedRequest) }),
+    new Request("http://localhost/api/intakes/finalize", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{" }),
+    new Request("http://localhost/api/intakes/finalize", { method: "POST", headers: { "Content-Type": "application/json" }, body: "x".repeat(FINALIZED_INTAKE_LIMITS.bodyBytes + 1) }),
+  ]) {
+    const response = await handler(request);
+    assert.ok([400, 413, 415].includes(response.status));
+  }
+  const success = await handler(new Request("http://localhost/api/intakes/finalize", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(finalizedRequest) }));
+  assert.equal(success.status, 201);
+  assert.equal(success.headers.get("cache-control"), "no-store");
+  assert.deepEqual(await success.json(), { ok: true, vehicleId: "vehicle-1", listingId: "listing-1", replayed: false });
+  assert.equal(calls, 1);
+});
+
+test("finalized intake repository maps stable IDs and hides database failures", async () => {
+  const valid = validateFinalizedIntake(finalizedRequest);
+  assert.equal(valid.ok, true); if (!valid.ok) return;
+  const repository = createFinalizedIntakeRepository(async () => ({ vehicleId: "vehicle-1", listingId: "listing-1", replayed: true }));
+  assert.deepEqual(await repository.finalizeIntake(valid.value), { vehicleId: "vehicle-1", listingId: "listing-1", replayed: true });
+  await assert.rejects(createFinalizedIntakeRepository(async () => { throw new Error("SQL detail"); }).finalizeIntake(valid.value), { name: "FinalizedIntakePersistenceError" });
+});
+
+test("finalization client posts its supplied key and exposes stable IDs", async () => {
+  let sent = "";
+  const result = await finalizeIntake({ ...emptyIntake, make: "Honda", model: "Civic" }, finalizedRequest.submissionKey, async (_url, init) => {
+    sent = String(init?.body);
+    return Response.json({ ok: true, vehicleId: "vehicle-1", listingId: "listing-1", submissionKey: finalizedRequest.submissionKey, replayed: false }, { status: 201 });
+  });
+  assert.equal(JSON.parse(sent).submissionKey, finalizedRequest.submissionKey);
+  assert.deepEqual(result, { ok: true, vehicleId: "vehicle-1", listingId: "listing-1", submissionKey: finalizedRequest.submissionKey, replayed: false });
 });
