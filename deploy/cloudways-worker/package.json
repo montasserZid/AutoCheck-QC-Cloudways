@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "description": "AutoCheck browser extraction worker (Puppeteer/Chrome) for the Cloudways host.",
-  "main": "dist/deploy/cloudways-worker/src/main.js",
+  "main": "dist/src/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/deploy/cloudways-worker/src/main.js",
+    "sync:shared": "node scripts/sync-shared-sources.mjs",
+    "build": "npm run sync:shared && tsc -p tsconfig.json",
+    "start": "node dist/src/main.js",
     "stop": "bash stop-worker.sh",
     "restart": "bash restart-worker.sh"
   },

@@ -14,7 +14,7 @@ if [ ! -f "$WORKER_DIR/node_modules" ]; then
   npm install --omit=optional --no-audit --no-fund
 fi
 
-if [ ! -f "$WORKER_DIR/dist/deploy/cloudways-worker/src/main.js" ]; then
+if [ ! -f "$WORKER_DIR/dist/src/main.js" ]; then
   echo "Building worker..."
   npm run build
 fi

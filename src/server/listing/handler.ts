@@ -2,6 +2,7 @@ import { extractListingFromHtml } from "../../lib/listingUrlExtraction";
 import {
   FacebookExtractionError,
   extractFacebookListingFromRenderedText,
+  extractFacebookMarketplaceItemViaHttp,
   facebookErrorToListingFetchError,
   isSupportedFacebookMarketplaceUrl,
 } from "./facebook";
@@ -183,8 +184,42 @@ export function createListingExtractionPostHandler(
 
     try {
       if (isSupportedFacebookMarketplaceUrl(url.trim())) {
+        // HTTP-first for direct Marketplace item URLs: public OpenGraph
+        // metadata is used only when it is provably tied to the requested
+        // item and genuinely usable. Every other case (share URLs, login
+        // walls, generic or mismatched metadata, network failure) falls back
+        // to the existing browser rendering path unchanged.
+        const metadata = await extractFacebookMarketplaceItemViaHttp(url.trim(), {
+          fetchHtml: fetchListingHtml,
+          onFallback: (reason) =>
+            console.warn(
+              JSON.stringify({ event: "facebook_http_metadata_fallback", reason }),
+            ),
+        });
+        if (metadata) {
+          const status = extractionStatus(metadata.extraction.found);
+          return json(
+            {
+              ok: true,
+              status,
+              retrieval: {
+                finalUrl: metadata.canonicalUrl,
+                httpStatus: metadata.httpStatus,
+                itemId: metadata.itemId,
+                elapsedMs: metadata.elapsedMs,
+                strategy: "http-metadata",
+              },
+              extraction: metadata.extraction,
+            },
+            200,
+          );
+        }
+
         const rendered = await renderFacebookMarketplaceListingForExtraction(url.trim());
-        const extraction = extractFacebookListingFromRenderedText(rendered);
+        const extraction = extractFacebookListingFromRenderedText(
+          rendered,
+          rendered.source === "http-metadata" ? "meta" : "facebook-rendered",
+        );
         const status = extractionStatus(extraction.found);
         return json(
           {
@@ -195,6 +230,10 @@ export function createListingExtractionPostHandler(
               httpStatus: 200,
               itemId: rendered.itemId,
               elapsedMs: rendered.elapsedMs,
+              strategy:
+                rendered.source === "http-metadata"
+                  ? "http-metadata"
+                  : "browser-rendered",
             },
             extraction,
           },

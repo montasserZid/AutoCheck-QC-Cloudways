@@ -7,7 +7,14 @@
     "build": "next build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --test output/tests/tests/"
+    "test": "tsc -p tsconfig.test.json && node --test output/tests/tests/",
+    "diag:fb-structured": "tsc -p tsconfig.test.json && node output/tests/deploy/cloudways-worker/scripts/facebook-structured-diagnostic.js",
+    "sync:worker-sources": "node deploy/cloudways-worker/scripts/sync-shared-sources.mjs",
+    "build:worker": "npm --prefix deploy/cloudways-worker run build",
+    "postinstall": "npm run sync:worker-sources",
+    "pretypecheck": "npm run sync:worker-sources",
+    "pretest": "npm run sync:worker-sources",
+    "prebuild": "npm run sync:worker-sources"
   },
   "dependencies": {
     "@sparticuz/chromium": "141.0.0",

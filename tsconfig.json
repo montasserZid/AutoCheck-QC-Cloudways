@@ -23,5 +23,5 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "fb_ref"]
+  "exclude": ["node_modules", "fb_ref", "deploy/cloudways-worker/vendor", "worked_locally_fb"]
 }

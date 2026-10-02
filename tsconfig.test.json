@@ -9,6 +9,14 @@
     "incremental": false,
     "plugins": []
   },
-  "include": ["tests/domain.test.ts", "tests/workerBoundary.test.ts"],
+  "include": [
+    "tests/domain.test.ts",
+    "tests/workerBoundary.test.ts",
+    "tests/facebookHttpMetadata.test.ts",
+    "tests/facebookLoginModal.test.ts",
+    "tests/facebookStructuredDiagnostic.test.ts",
+    "deploy/cloudways-worker/scripts/facebookStructured.ts",
+    "deploy/cloudways-worker/scripts/facebook-structured-diagnostic.ts"
+  ],
   "exclude": ["node_modules", ".next", "output", "deploy/cloudways-worker/node_modules"]
 }

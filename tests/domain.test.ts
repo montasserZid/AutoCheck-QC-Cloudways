@@ -36,15 +36,21 @@ import {
 import {
   buildFacebookChromiumArgvVariants,
   canonicalFacebookItemUrl,
+  classifyFacebookPageTitle,
+  classifyFacebookPath,
+  classifyFacebookRenderFailure,
   createFacebookLifecycleTracker,
   detectFacebookPageState,
+  evaluateFacebookRenderGate,
   extractFacebookItemId,
   extractFacebookListingFromRenderedText,
   facebookBrowserRuntime,
   facebookRenderChromiumLaunchOptions,
+  facebookRenderWaitBudget,
   facebookServerlessChromiumLaunchOptions,
   FacebookExtractionError,
   facebookErrorToListingFetchError,
+  FacebookRenderWaitError,
   isSupportedFacebookMarketplaceUrl,
   primaryFacebookListingText,
   readFacebookRuntimeMemoryDiagnostics,
@@ -52,6 +58,7 @@ import {
   resolveFacebookBrowserExecutable,
   runFacebookChromiumLaunchMatrix,
   reuseOrCreateFacebookPage,
+  summarizeFacebookRenderProbe,
   validateFacebookChromiumGraphicsArgs,
   waitForFacebookRenderReadiness,
 } from "../src/server/listing/facebook";
@@ -779,6 +786,318 @@ test("Facebook render wait fails when readiness never arrives", async () => {
     /render wait timed out before readiness/,
   );
   assert.equal(checks, 3);
+});
+
+// ---------------------------------------------------------------------------
+// Facebook render readiness
+//
+// Regression cover for the Cloudways failure: the render wait abandoned polling
+// after a fixed 18 x 200 ms (~3.4 s) no matter how much of the extraction
+// deadline remained, and the first gate demanded a /marketplace/item/ URL that
+// only the later share-resolution step could discover.
+// ---------------------------------------------------------------------------
+
+test("render wait budget follows the extraction deadline instead of a fixed ceiling", () => {
+  // The old fixed ceiling was 18 polls. A 25 s budget must allow far more.
+  assert.equal(facebookRenderWaitBudget(25_000, () => 0).maxChecks, 125);
+  assert.equal(facebookRenderWaitBudget(25_000, () => 0).pollIntervalMs, 200);
+  // Already spent budget reduces the polls rather than being ignored.
+  assert.equal(facebookRenderWaitBudget(25_000, () => 23_000).maxChecks, 10);
+  // A tiny or exhausted remainder still gets a floor so the wait is not skipped.
+  assert.equal(facebookRenderWaitBudget(25_000, () => 24_950).maxChecks, 3);
+  assert.equal(facebookRenderWaitBudget(1, () => 1_000).maxChecks, 3);
+  // No deadline means the hard ceiling, which still exceeds the historical 18.
+  const unbounded = facebookRenderWaitBudget(undefined);
+  assert.equal(unbounded.maxChecks, 200);
+  assert.equal(unbounded.maxChecks > 18, true);
+});
+
+test("render wait polls for the whole remaining budget, not 18 checks", async () => {
+  let checks = 0;
+  await assert.rejects(
+    waitForFacebookRenderReadiness(
+      async () => {
+        checks += 1;
+        return false;
+      },
+      { deadline: 25_000, now: () => 0, sleep: async () => undefined },
+    ),
+    /render wait timed out before readiness/,
+  );
+  assert.equal(checks, 125, "the wait must use the derived budget");
+});
+
+test("render wait reports why it stopped instead of one generic timeout", async () => {
+  const outcomeOf = async (
+    check: () => Promise<boolean>,
+    options: Parameters<typeof waitForFacebookRenderReadiness>[1],
+  ) => {
+    try {
+      await waitForFacebookRenderReadiness(check, options);
+      return "ready" as const;
+    } catch (error) {
+      assert.ok(error instanceof FacebookRenderWaitError);
+      return error.outcome;
+    }
+  };
+
+  assert.equal(
+    await outcomeOf(async () => false, { deadline: 100, now: () => 100, sleep: async () => undefined }),
+    "deadline",
+  );
+  assert.equal(
+    await outcomeOf(async () => false, { maxChecks: 2, sleep: async () => undefined }),
+    "checks-exhausted",
+  );
+  assert.equal(
+    await outcomeOf(async () => {
+      throw new Error("Attempted to use detached Frame 'x'.");
+    }, { maxChecks: 2, sleep: async () => undefined }),
+    "transient-error",
+  );
+  assert.equal(
+    await outcomeOf(async () => true, {
+      terminalCheck: () => true,
+      sleep: async () => undefined,
+    }),
+    "terminal",
+  );
+});
+
+test("render wait stops early on a blocking page instead of burning the budget", async () => {
+  let checks = 0;
+  await assert.rejects(
+    waitForFacebookRenderReadiness(
+      async () => {
+        checks += 1;
+        return false;
+      },
+      {
+        deadline: 25_000,
+        now: () => 0,
+        sleep: async () => undefined,
+        terminalCheck: () => true,
+      },
+    ),
+    (error: unknown) => error instanceof FacebookRenderWaitError && error.outcome === "terminal",
+  );
+  assert.equal(checks, 0, "a wall must be detected before any further polling");
+});
+
+test("a terminal verdict never counts towards required ready checks", async () => {
+  // Mirrors settle(): the probe reports terminal, the check returns false, and
+  // terminalCheck aborts. A wall can therefore never be reported as ready.
+  const state = { verdict: "terminal" as "ready" | "pending" | "terminal" };
+  const check = async () => state.verdict === "ready";
+  const run = async () => {
+    try {
+      await waitForFacebookRenderReadiness(check, {
+        deadline: 25_000,
+        now: () => 0,
+        sleep: async () => undefined,
+        terminalCheck: () => state.verdict === "terminal",
+      });
+      return "ready";
+    } catch (error) {
+      assert.ok(error instanceof FacebookRenderWaitError);
+      return error.outcome;
+    }
+  };
+  assert.equal(await run(), "terminal");
+
+  state.verdict = "pending";
+  assert.equal(await run(), "checks-exhausted");
+
+  state.verdict = "ready";
+  assert.equal(await run(), "ready");
+});
+
+const probe = (overrides: Record<string, unknown> = {}) =>
+  summarizeFacebookRenderProbe({
+    host: "www.facebook.com",
+    path: "/marketplace/item/1234567890/",
+    title: "2018 Toyota Corolla LE | Facebook",
+    readyState: "complete",
+    bodyTextLength: 2400,
+    hasOgUrl: true,
+    hasMarketplaceMarker: true,
+    hasListingDetailMarkers: true,
+    ...overrides,
+  } as never);
+
+test("Facebook path and title are classified without retaining their contents", () => {
+  assert.equal(classifyFacebookPath("/marketplace/item/1234567890/"), "marketplace-item");
+  assert.equal(classifyFacebookPath("/share/1HjKAsQwoy/"), "share");
+  assert.equal(classifyFacebookPath("/login/device-based/regular/login/"), "login");
+  assert.equal(classifyFacebookPath("/checkpoint/d/"), "checkpoint");
+  assert.equal(classifyFacebookPath("/consent/"), "consent");
+  assert.equal(classifyFacebookPath("/"), "home");
+  assert.equal(classifyFacebookPath("/groups/12345"), "other");
+
+  assert.equal(classifyFacebookPageTitle("Log in to Facebook"), "login");
+  assert.equal(classifyFacebookPageTitle("Facebook - Checkpoint Required"), "checkpoint");
+  assert.equal(classifyFacebookPageTitle("Facebook Cookie Consent"), "consent");
+  assert.equal(classifyFacebookPageTitle("This content isn't available right now"), "unavailable");
+  assert.equal(classifyFacebookPageTitle("Facebook Marketplace | Buy and Sell"), "marketplace");
+  assert.equal(classifyFacebookPageTitle("2018 Toyota Corolla LE | Facebook"), "facebook-page");
+  assert.equal(classifyFacebookPageTitle(""), "empty");
+  assert.equal(classifyFacebookPageTitle("Something else"), "other");
+
+  // The summary carries categories and counts, never the raw path or title.
+  const summary = probe();
+  assert.equal(summary.pathCategory, "marketplace-item");
+  assert.equal(summary.titleCategory, "facebook-page");
+  assert.equal("path" in summary, false);
+  assert.equal("title" in summary, false);
+  assert.equal(summary.bodyTextLength, 2400);
+});
+
+test("readiness still requires a settled page with Marketplace item evidence", () => {
+  // The predicate itself is unchanged: weakening it would let the caller read
+  // the page before Facebook finished resolving the share URL.
+  const onSharePage = probe({
+    path: "/share/1HjKAsQwoy/",
+    hasMarketplaceMarker: false,
+    hasListingDetailMarkers: false,
+  });
+  const pending = evaluateFacebookRenderGate(onSharePage);
+  assert.equal(pending.verdict, "pending");
+  assert.equal(pending.predicates.readyStateComplete, true);
+  assert.equal(pending.predicates.hasBodyText, true);
+  assert.equal(
+    pending.predicates.hasMarketplaceItemMarker,
+    false,
+    "an unresolved share URL must not be treated as ready",
+  );
+
+  // Ready once the item evidence appears, by location path or by og:url.
+  assert.equal(evaluateFacebookRenderGate(probe()).verdict, "ready");
+  assert.equal(
+    evaluateFacebookRenderGate(
+      probe({ path: "/share/1HjKAsQwoy/", hasMarketplaceMarker: true }),
+    ).verdict,
+    "ready",
+    "client-side resolution via og:url counts as ready",
+  );
+
+  // Still pending while the document is loading or has no text at all.
+  assert.equal(evaluateFacebookRenderGate(probe({ readyState: "loading" })).verdict, "pending");
+  assert.equal(evaluateFacebookRenderGate(probe({ bodyTextLength: 0 })).verdict, "pending");
+  assert.equal(
+    evaluateFacebookRenderGate(probe({ hasMarketplaceMarker: false })).verdict,
+    "pending",
+  );
+});
+
+test("a login wall, consent interstitial or checkpoint is terminal", () => {
+  const cases: { path: string; title: string; category: string }[] = [
+    { path: "/login/device-based/regular/login/", title: "Log in to Facebook", category: "login" },
+    { path: "/consent/", title: "Facebook Consent", category: "consent" },
+    { path: "/checkpoint/d/", title: "Facebook", category: "checkpoint" },
+  ];
+  for (const entry of cases) {
+    const evaluation = evaluateFacebookRenderGate(probe({ path: entry.path, title: entry.title }));
+    assert.equal(evaluation.verdict, "terminal", entry.category);
+  }
+  // A title-only wall is terminal too.
+  assert.equal(evaluateFacebookRenderGate(probe({ title: "Log in to Facebook" })).verdict, "terminal");
+});
+
+test("a stalled render wait is classified into a specific, actionable outcome", () => {
+  const withProbe = (overrides: Record<string, unknown>) => probe(overrides);
+
+  assert.deepEqual(
+    classifyFacebookRenderFailure({
+      probe: withProbe({ path: "/login/", title: "Log in to Facebook" }),
+      outcome: "checks-exhausted",
+    }),
+    {
+      reason: "login-wall",
+      code: "FACEBOOK_LOGIN_REQUIRED",
+      message: "Facebook served a login wall instead of the listing.",
+    },
+  );
+  assert.equal(
+    classifyFacebookRenderFailure({
+      probe: withProbe({ path: "/consent/", title: "Facebook" }),
+      outcome: "checks-exhausted",
+    }).code,
+    "FACEBOOK_CONSENT_REQUIRED",
+  );
+  assert.equal(
+    classifyFacebookRenderFailure({
+      probe: withProbe({ path: "/checkpoint/d/", title: "Facebook" }),
+      outcome: "checks-exhausted",
+    }).code,
+    "FACEBOOK_BLOCKED",
+  );
+  assert.equal(
+    classifyFacebookRenderFailure({
+      probe: withProbe({ title: "This content isn't available right now" }),
+      outcome: "checks-exhausted",
+    }).reason,
+    "listing-unavailable",
+  );
+  assert.equal(
+    classifyFacebookRenderFailure({
+      probe: withProbe({ bodyTextLength: 0 }),
+      outcome: "checks-exhausted",
+    }).reason,
+    "empty-page",
+  );
+  // Listing evidence present but readiness never stabilised.
+  assert.equal(
+    classifyFacebookRenderFailure({
+      probe: withProbe({ path: "/share/1HjKAsQwoy/", hasMarketplaceMarker: false }),
+      outcome: "checks-exhausted",
+    }).reason,
+    "listing-rendered-predicate-missed",
+  );
+  // A real deadline and a real navigation failure stay distinct from all of the above.
+  assert.equal(
+    classifyFacebookRenderFailure({ probe: probe(), outcome: "deadline" }).reason,
+    "deadline-exceeded",
+  );
+  assert.equal(
+    classifyFacebookRenderFailure({ probe: null, outcome: "deadline" }).code,
+    "FACEBOOK_NAVIGATION_TIMEOUT",
+  );
+  assert.equal(
+    classifyFacebookRenderFailure({ probe: null, outcome: "navigation-failure" }).reason,
+    "navigation-failure",
+  );
+
+  // Every reason maps to a distinct, non-generic classification.
+  const reasons = [
+    "login-wall",
+    "consent-interstitial",
+    "checkpoint-block",
+    "listing-unavailable",
+    "empty-page",
+    "listing-rendered-predicate-missed",
+  ].map((reason) =>
+    classifyFacebookRenderFailure({
+      probe:
+        reason === "login-wall"
+          ? withProbe({ path: "/login/", title: "Log in to Facebook" })
+          : reason === "consent-interstitial"
+            ? withProbe({ path: "/consent/" })
+            : reason === "checkpoint-block"
+              ? withProbe({ path: "/checkpoint/d/" })
+              : reason === "listing-unavailable"
+                ? withProbe({ title: "This content isn't available right now" })
+                : reason === "empty-page"
+                  ? withProbe({ bodyTextLength: 0 })
+                  : withProbe({}),
+      outcome: "checks-exhausted",
+    }),
+  );
+  assert.equal(new Set(reasons.map((entry) => entry.reason)).size, reasons.length);
+  assert.equal(
+    reasons.some((entry) => entry.code === "FACEBOOK_EXTRACTION_FAILED"),
+    false,
+    "a stalled render must never be reported as an undifferentiated failure",
+  );
 });
 
 test("Facebook serverless launch restores the Sparticuz SwiftShader graphics stack", async () => {

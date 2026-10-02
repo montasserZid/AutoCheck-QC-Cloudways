@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import fs from "node:fs";
 import http from "node:http";
+import { builtinModules } from "node:module";
+import path from "node:path";
 
 import {
   browserWorkerConfiguration,
@@ -31,7 +35,11 @@ import {
   WORKER_EXTRACT_ROUTE,
   WORKER_HEALTH_ROUTE,
 } from "../deploy/cloudways-worker/src/render";
-import { redactLogRecord, sanitizeLogHostname } from "../deploy/cloudways-worker/src/logging";
+import {
+  redactLogRecord,
+  sanitizeLogHostname,
+  sanitizeRenderDiagnostics,
+} from "../deploy/cloudways-worker/src/logging";
 
 const SECRET = "test-worker-secret-value";
 const LISTING_URL = "https://www.facebook.com/share/1HjKAsQwoy/";
@@ -666,6 +674,134 @@ test("worker logging redacts secrets and never logs query strings", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Facebook render diagnostics
+//
+// These records must be enough to tell a login wall from a consent interstitial
+// from an anti-bot checkpoint from an unrendered listing, while never carrying
+// page HTML, rendered text, cookies, headers, the worker secret, a query string
+// or the raw URL/title.
+// ---------------------------------------------------------------------------
+
+const RENDER_DIAGNOSTICS = {
+  phase: "share",
+  outcome: "checks-exhausted",
+  reason: "login-wall",
+  polls: 120,
+  waitMs: 24120,
+  httpStatus: 200,
+  pageState: null,
+  timings: { navigationMs: 410, renderWaitMs: 24120 },
+  page: {
+    host: "www.facebook.com",
+    pathCategory: "login",
+    titleCategory: "login",
+    readyState: "complete",
+    bodyTextLength: 412,
+    hasOgUrl: false,
+    hasMarketplaceMarker: false,
+    hasListingDetailMarkers: false,
+  },
+  predicates: { readyStateComplete: true, hasBodyText: true, noLoginWall: false },
+};
+
+test("render diagnostics are reduced to a safe whitelist", () => {
+  const safe = sanitizeRenderDiagnostics(RENDER_DIAGNOSTICS);
+  assert.ok(safe);
+  assert.equal(safe.phase, "share");
+  assert.equal(safe.reason, "login-wall");
+  assert.equal(safe.polls, 120);
+  assert.equal(safe.httpStatus, 200);
+  assert.deepEqual(safe.page, RENDER_DIAGNOSTICS.page);
+  assert.deepEqual(safe.predicates, RENDER_DIAGNOSTICS.predicates);
+  assert.deepEqual(safe.timings, RENDER_DIAGNOSTICS.timings);
+
+  // Anything unrecognised is dropped rather than forwarded.
+  const withJunk = sanitizeRenderDiagnostics({
+    ...RENDER_DIAGNOSTICS,
+    bodyText: "Driven 82,300 km. Seller says cash only.",
+    cookies: "c_user=abc",
+    authorization: `Bearer ${SECRET}`,
+    page: {
+      ...RENDER_DIAGNOSTICS.page,
+      rawTitle: "Log in to Facebook",
+      rawPath: "/login?next=x",
+    },
+  });
+  assert.ok(withJunk);
+  assert.equal("bodyText" in withJunk, false);
+  assert.equal("cookies" in withJunk, false);
+  assert.equal("authorization" in withJunk, false);
+  assert.equal("rawTitle" in (withJunk.page as Record<string, unknown>), false);
+  assert.equal("rawPath" in (withJunk.page as Record<string, unknown>), false);
+  const serialized = JSON.stringify(withJunk);
+  assert.equal(serialized.includes("Driven 82,300"), false);
+  assert.equal(serialized.includes(SECRET), false);
+  assert.equal(serialized.includes("Log in to Facebook"), false);
+
+  // Non-primitive and oversized values cannot survive either.
+  const hostile = sanitizeRenderDiagnostics({
+    ...RENDER_DIAGNOSTICS,
+    reason: { nested: "object" },
+    phase: "x".repeat(500),
+    timings: { weird: [1, 2, 3], alsoWeird: Number.NaN },
+  });
+  assert.ok(hostile);
+  assert.equal(hostile.reason, null, "non-primitives must not be forwarded");
+  assert.equal(typeof hostile.phase, "string");
+  assert.equal((hostile.phase as string).length, 123);
+  assert.deepEqual(hostile.timings, { weird: null, alsoWeird: null });
+
+  assert.equal(sanitizeRenderDiagnostics(null), null);
+  assert.equal(sanitizeRenderDiagnostics(undefined), null);
+  assert.equal(sanitizeRenderDiagnostics({ unrelated: 1 }), null);
+});
+
+test("a failed extraction logs safe render diagnostics and keeps them out of the response", async () => {
+  const records: Record<string, unknown>[] = [];
+  await withWorker(
+    () =>
+      createExtractionWorker({
+        secret: SECRET,
+        logger: {
+          info: (record) => records.push(record),
+          warn: (record) => records.push(record),
+          error: (record) => records.push(record),
+        },
+        extract: async () => ({
+          status: 502,
+          body: {
+            ok: false,
+            code: "FACEBOOK_LOGIN_REQUIRED",
+            error: "Facebook served a login wall instead of the listing.",
+            diagnostics: { render: RENDER_DIAGNOSTICS },
+          },
+        }),
+      }),
+    async (call) => {
+      const failure = await call(extractCall);
+      assert.equal(failure.status, 502);
+      assert.equal(failure.body.code, "FACEBOOK_LOGIN_REQUIRED");
+      // Diagnostics are operator-facing, not part of the API contract.
+      assert.equal("diagnostics" in failure.body, false);
+      assert.equal(JSON.stringify(failure.body).includes("waitMs"), false);
+    },
+  );
+
+  const logged = records.find((record) => record.event === "extraction_failed");
+  assert.ok(logged, "the failure must be logged");
+  assert.equal(logged.code, "FACEBOOK_LOGIN_REQUIRED");
+  const render = logged.render as Record<string, unknown>;
+  assert.equal(render.reason, "login-wall");
+  assert.equal(render.waitMs, 24120);
+  assert.equal(
+    (render.page as Record<string, unknown>).pathCategory,
+    "login",
+    "the log must show Facebook served a login page",
+  );
+  assert.equal(JSON.stringify(records).includes(SECRET), false);
+});
+
+// ---------------------------------------------------------------------------
 // Fallback behaviour
 // ---------------------------------------------------------------------------
 
@@ -695,4 +831,266 @@ test("browser worker failure codes are classified separately from target URL cod
   assert.equal(isBrowserWorkerFailure("timeout"), false);
   assert.equal(isBrowserWorkerFailure("unsafe-url"), false);
   assert.equal(isBrowserWorkerFailure("network-error"), false);
+});
+
+// ---------------------------------------------------------------------------
+// Deployment layout
+//
+// The worker ships as a standalone tree to /home/master/autocheck-worker, with
+// node_modules at /home/master/autocheck-worker/node_modules. Node resolves
+// `puppeteer-core` by walking upwards from the importing file, so every
+// compiled file has to live at or below the worker root. These tests pin that
+// invariant so a shared-module import can never escape the worker tree again.
+// ---------------------------------------------------------------------------
+
+function findRepoRoot(): string {
+  let current = __dirname;
+  for (let depth = 0; depth < 10; depth += 1) {
+    const manifest = path.join(current, "package.json");
+    if (fs.existsSync(manifest)) {
+      const parsed = JSON.parse(fs.readFileSync(manifest, "utf8")) as { name?: string };
+      if (parsed.name === "autocheck-qc") return current;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  throw new Error(`Could not locate the AutoCheck repository root from ${__dirname}`);
+}
+
+const REPO_ROOT = findRepoRoot();
+const WORKER_DIR = path.join(REPO_ROOT, "deploy", "cloudways-worker");
+const VENDOR_DIR = path.join(WORKER_DIR, "vendor");
+
+const RESOLVE_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts"];
+
+/** Every TypeScript source the worker compiles: its own plus the vendored AutoCheck modules. */
+function workerSourceFiles(): string[] {
+  const files: string[] = [];
+  const walk = (directory: string): void => {
+    if (!fs.existsSync(directory)) return;
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) walk(absolute);
+      else if (absolute.endsWith(".ts")) files.push(absolute);
+    }
+  };
+  walk(path.join(WORKER_DIR, "src"));
+  walk(path.join(WORKER_DIR, "scripts"));
+  walk(path.join(VENDOR_DIR, "src"));
+  return files.sort();
+}
+
+function importSpecifiers(file: string): string[] {
+  const source = fs.readFileSync(file, "utf8");
+  const specifiers = new Set<string>();
+  // Static import/export-from plus dynamic import()/require() of a literal.
+  for (const pattern of [
+    /\bfrom\s*["']([^"']+)["']/g,
+    /\b(?:import|require)\s*\(\s*["']([^"']+)["']\s*\)/g,
+  ]) {
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(source)) !== null) specifiers.add(match[1]);
+  }
+  return [...specifiers];
+}
+
+function resolveRelativeImport(fromFile: string, specifier: string): string | null {
+  const base = path.resolve(path.dirname(fromFile), specifier);
+  const candidates = [
+    base,
+    ...RESOLVE_EXTENSIONS.map((ext) => `${base}${ext}`),
+    ...RESOLVE_EXTENSIONS.map((ext) => path.join(base, `index${ext}`)),
+  ];
+  return (
+    candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile()) ??
+    null
+  );
+}
+
+function sha256(file: string): string {
+  return createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+}
+
+/** `@sparticuz/chromium` is one package name, not the package `@sparticuz`. */
+function packageNameOf(specifier: string): string {
+  const segments = specifier.split("/");
+  return specifier.startsWith("@") ? segments.slice(0, 2).join("/") : segments[0];
+}
+
+test("shared AutoCheck modules are vendored inside the worker tree and match the repository", () => {
+  const manifestPath = path.join(VENDOR_DIR, "manifest.json");
+  assert.equal(
+    fs.existsSync(manifestPath),
+    true,
+    "deploy/cloudways-worker/vendor/manifest.json is missing. Run `npm run sync:worker-sources`.",
+  );
+
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as {
+    files?: { path: string; sha256: string }[];
+  };
+  const entries = manifest.files ?? [];
+  assert.deepEqual(
+    entries.map((entry) => entry.path),
+    [
+      "src/lib/listingExtraction.ts",
+      "src/lib/listingUrlExtraction.ts",
+      "src/server/listing/facebook.ts",
+      "src/server/listing/secureFetch.ts",
+      "src/types/domain.ts",
+    ],
+    "the vendored module set must be exactly the transitive relative-import closure of the worker entry modules",
+  );
+
+  for (const entry of entries) {
+    const vendored = path.join(VENDOR_DIR, entry.path);
+    const original = path.join(REPO_ROOT, entry.path);
+    assert.equal(fs.existsSync(vendored), true, `vendor/${entry.path} was not deployed`);
+    assert.equal(
+      fs.existsSync(original),
+      true,
+      `vendor/${entry.path} has no counterpart at ${entry.path} in the repository`,
+    );
+    assert.equal(sha256(vendored), entry.sha256, `vendor/${entry.path} does not match its manifest checksum`);
+    assert.equal(
+      sha256(vendored),
+      sha256(original),
+      `vendor/${entry.path} is stale. Run \`npm run sync:worker-sources\`.`,
+    );
+  }
+});
+
+test("every relative import in the worker tree resolves inside the worker tree", () => {
+  const files = workerSourceFiles();
+  // 5 worker sources + 5 vendored AutoCheck modules.
+  assert.equal(files.length >= 10, true, `expected the full worker source set, found ${files.length}`);
+
+  for (const file of files) {
+    const from = path.relative(REPO_ROOT, file);
+    for (const specifier of importSpecifiers(file)) {
+      if (!specifier.startsWith(".")) continue;
+      const resolved = resolveRelativeImport(file, specifier);
+      if (resolved === null) {
+        assert.fail(`${from}: relative import "${specifier}" does not resolve to a file`);
+      }
+      const relative = path.relative(WORKER_DIR, resolved);
+      assert.equal(
+        path.isAbsolute(relative) || relative.startsWith(".."),
+        false,
+        `${from}: "${specifier}" resolves to ${relative}, outside deploy/cloudways-worker. ` +
+          "The worker is deployed as a standalone tree with node_modules at " +
+          "autocheck-worker/node_modules, so no compiled file may live above the worker root " +
+          "or the shared modules' package imports become unresolvable.",
+      );
+    }
+  }
+});
+
+test("every package import in the worker tree is a builtin or declared by the worker package", () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(WORKER_DIR, "package.json"), "utf8")) as {
+    dependencies?: Record<string, string>;
+  };
+  const declared = new Set(Object.keys(pkg.dependencies ?? {}));
+
+  const tsconfig = JSON.parse(fs.readFileSync(path.join(WORKER_DIR, "tsconfig.json"), "utf8")) as {
+    compilerOptions?: { paths?: Record<string, string[]> };
+  };
+  const mapped = Object.keys(tsconfig.compilerOptions?.paths ?? {});
+
+  const builtins = new Set(
+    builtinModules.flatMap((name) => [name, name.replace(/^node:/, "")]),
+  );
+
+  for (const file of workerSourceFiles()) {
+    const from = path.relative(REPO_ROOT, file);
+    for (const specifier of importSpecifiers(file)) {
+      if (specifier.startsWith(".") || specifier.startsWith("node:")) continue;
+      const packageName = packageNameOf(specifier);
+      assert.equal(
+        builtins.has(packageName) || declared.has(packageName) || mapped.includes(packageName),
+        true,
+        `${from}: package "${specifier}" is neither a Node builtin, a dependency of ` +
+          "deploy/cloudways-worker/package.json, nor mapped by its tsconfig, so the worker " +
+          "build would fail with 'Cannot find module'.",
+      );
+    }
+  }
+
+  // puppeteer-core is genuinely required at runtime on the host.
+  assert.equal(declared.has("puppeteer-core"), true);
+  // @sparticuz/chromium is only reachable from the Vercel/Render branch of the
+  // shared renderer, which Cloudways never takes (CHROME_EXECUTABLE_PATH wins),
+  // so it must be type-supplied without installing a second Chromium.
+  assert.equal(mapped.includes("@sparticuz/chromium"), true);
+  assert.equal(
+    declared.has("@sparticuz/chromium"),
+    false,
+    "@sparticuz/chromium must not be installed on the worker host",
+  );
+});
+
+test("worker tsconfig, package entry point and start scripts agree on one self-contained layout", () => {
+  const tsconfig = JSON.parse(fs.readFileSync(path.join(WORKER_DIR, "tsconfig.json"), "utf8")) as {
+    compilerOptions?: { rootDir?: string; outDir?: string; paths?: Record<string, string[]> };
+    include?: string[];
+  };
+  const rootDir = tsconfig.compilerOptions?.rootDir ?? "";
+  const outDir = tsconfig.compilerOptions?.outDir ?? "";
+
+  assert.equal(
+    rootDir,
+    ".",
+    "the worker rootDir must be the worker directory so nothing compiles outside the deployed tree",
+  );
+  assert.equal(outDir, "./dist");
+  assert.equal(
+    (tsconfig.include ?? []).includes("vendor/src/**/*.ts"),
+    true,
+    "the worker tsconfig must compile the vendored AutoCheck modules",
+  );
+
+  for (const [name, targets] of Object.entries(tsconfig.compilerOptions?.paths ?? {})) {
+    for (const target of targets) {
+      assert.equal(
+        fs.existsSync(path.resolve(WORKER_DIR, target)),
+        true,
+        `tsconfig maps "${name}" to ${target}, which does not exist`,
+      );
+    }
+  }
+
+  // src/main.ts compiled with rootDir "." and outDir "./dist" => dist/src/main.js,
+  // and every emitted file stays under dist/, so node_modules resolution always
+  // reaches autocheck-worker/node_modules.
+  const entry = `${outDir.replace(/^\.\//, "")}/src/main.ts`.replace(/\.ts$/, ".js");
+  const pkg = JSON.parse(fs.readFileSync(path.join(WORKER_DIR, "package.json"), "utf8")) as {
+    main?: string;
+    scripts?: Record<string, string>;
+  };
+  assert.equal(entry, "dist/src/main.js");
+  assert.equal(pkg.main, entry);
+  assert.equal(pkg.scripts?.start, `node ${entry}`);
+
+  const startScript = fs.readFileSync(path.join(WORKER_DIR, "start-worker.sh"), "utf8");
+  for (const script of ["start-worker.sh", "restart-worker.sh"]) {
+    const contents = fs.readFileSync(path.join(WORKER_DIR, script), "utf8");
+    assert.equal(
+      contents.includes(entry),
+      true,
+      `${script} must launch ${entry}`,
+    );
+    assert.equal(
+      contents.includes("dist/deploy/"),
+      false,
+      `${script} still references the old in-repo output path`,
+    );
+  }
+
+  // A stray VERCEL/RENDER marker must not be able to switch the shared renderer
+  // onto the Sparticuz Chromium that is deliberately not installed here.
+  assert.equal(
+    startScript.includes("unset VERCEL RENDER"),
+    true,
+    "start-worker.sh must clear VERCEL/RENDER so the system Chrome is always used",
+  );
 });

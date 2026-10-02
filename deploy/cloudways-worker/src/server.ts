@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import http from "node:http";
 
 import { isAuthorizedRequest } from "./auth";
-import { sanitizeLogHostname, type WorkerLogger } from "./logging";
+import {
+  sanitizeLogHostname,
+  sanitizeRenderDiagnostics,
+  type WorkerLogger,
+} from "./logging";
 import {
   extractWithBrowserWorker,
   WORKER_EXTRACTION_LIMITS,
@@ -281,14 +285,24 @@ export function createExtractionWorker(options: ExtractionWorkerOptions = {}): h
           return;
         }
         const timeouted = elapsedMs >= extractTimeoutMs;
+        const render = sanitizeRenderDiagnostics(result.body.diagnostics?.render);
         logger?.[timeouted ? "warn" : "error"]({
           event: timeouted ? "extraction_timeout" : "extraction_failed",
           requestId,
           hostname: sanitizeLogHostname(requestedUrl),
           elapsedMs,
           code: result.body.code,
+          // What Facebook actually served, so a failed extraction is diagnosable
+          // from worker.log alone. Categories/counts only, never page content.
+          ...(render ? { render } : {}),
         });
-        sendJson(response, result.status, { ...result.body, requestId });
+        // Diagnostics are logged above, never shipped back to the gateway:
+        // JSON.stringify omits undefined values, so the key disappears.
+        sendJson(response, result.status, {
+          ...result.body,
+          diagnostics: undefined,
+          requestId,
+        });
       } catch (error) {
         const elapsedMs = now() - extractionStartedAt;
         logger?.error({

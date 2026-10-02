@@ -13,3 +13,5 @@ output
 .playwright-cli
 tsconfig.tsbuildinfo
 supabase/.temp/
+
+worked_locally_fb/

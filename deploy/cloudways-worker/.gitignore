@@ -1,6 +1,9 @@
 node_modules
 dist
+vendor
 .env
+.facebook-session
+session
 worker.log
 worker.pid
 *.log

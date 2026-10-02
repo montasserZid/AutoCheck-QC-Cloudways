@@ -110,6 +110,7 @@ export interface FetchPublicListingOptions {
   maxBodyBytes?: number;
   lookup?: PublicLookup;
   testOnlyAllowPrivateNetwork?: boolean;
+  headers?: Record<string, string>;
 }
 
 interface ResolvedAddress {
@@ -295,7 +296,7 @@ function publicHostnameForTls(url: URL): string | undefined {
 function requestHtml(
   url: URL,
   address: ResolvedAddress,
-  options: Required<Pick<FetchPublicListingOptions, "timeoutMs" | "maxBodyBytes">>,
+  options: Required<Pick<FetchPublicListingOptions, "timeoutMs" | "maxBodyBytes">> & { headers?: Record<string, string> },
 ): Promise<{
   status: number;
   headers: http.IncomingHttpHeaders;
@@ -314,6 +315,7 @@ function requestHtml(
           Accept: "text/html,application/xhtml+xml",
           Host: url.host,
           "User-Agent": "AutoCheckQC/1.0 deterministic-listing-reader",
+          ...(options.headers || {}),
         },
         servername:
           url.protocol === "https:" ? publicHostnameForTls(url) : undefined,

@@ -447,7 +447,12 @@ function parseEmbeddedJson(html: string, result: ListingUrlExtraction) {
   }
 }
 
-function parseAttributes(tag: string): Record<string, string> {
+/**
+ * Attribute parser shared with the server-side Facebook metadata reader.
+ * It tolerates any attribute order and only accepts matched quote pairs, so a
+ * value like `content="Men's car"` is never truncated at the apostrophe.
+ */
+export function parseAttributes(tag: string): Record<string, string> {
   const attrs: Record<string, string> = {};
   for (const match of tag.matchAll(/([a-z_:.-]+)\s*=\s*(["'])(.*?)\2/gi)) {
     attrs[match[1].toLowerCase()] = decodeEntities(match[3]);

@@ -181,6 +181,9 @@ export function parseRenderedListingPayload(value: unknown): FacebookRenderedLis
     ogTitle: optionalString(record.ogTitle),
     ogDescription: optionalString(record.ogDescription),
     elapsedMs,
+    // Whitelisted marker: only the exact HTTP metadata value survives the
+    // trust boundary; anything else falls back to browser-rendered provenance.
+    ...(record.source === "http-metadata" ? { source: "http-metadata" as const } : {}),
   };
 }
 

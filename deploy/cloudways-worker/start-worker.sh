@@ -17,7 +17,7 @@ cd "$WORKER_DIR"
 
 NODE_BIN="${NODE_BIN:-node}"
 CHROME_LIB_ROOT="${AUTOCHECK_CHROME_LIB_ROOT:-/home/master/chrome-libs/root}"
-WORKER_ENTRY="$WORKER_DIR/dist/deploy/cloudways-worker/src/main.js"
+WORKER_ENTRY="$WORKER_DIR/dist/src/main.js"
 PID_FILE="$WORKER_DIR/worker.pid"
 LOG_FILE="${AUTOCHECK_WORKER_LOG:-$WORKER_DIR/worker.log}"
 
@@ -31,6 +31,11 @@ if [ -f "$WORKER_DIR/.env" ]; then
   . "$WORKER_DIR/.env"
   set +a
 fi
+
+# 2b. This host runs the system Chrome, never a downloaded Chromium. Clear the
+#     Vercel/Render markers so the shared renderer's serverless branch (which
+#     lazily loads @sparticuz/chromium) can never be selected by accident.
+unset VERCEL RENDER || true
 
 if [ ! -f "$WORKER_ENTRY" ]; then
   echo "Worker build not found at $WORKER_ENTRY. Run 'npm install && npm run build' first." >&2
