@@ -15,6 +15,7 @@
     "tests/facebookHttpMetadata.test.ts",
     "tests/facebookLoginModal.test.ts",
     "tests/facebookStructuredDiagnostic.test.ts",
+    "tests/brightDataFacebook.test.ts",
     "deploy/cloudways-worker/scripts/facebookStructured.ts",
     "deploy/cloudways-worker/scripts/facebook-structured-diagnostic.ts"
   ],

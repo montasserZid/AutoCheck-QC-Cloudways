@@ -6,6 +6,7 @@ import {
   facebookErrorToListingFetchError,
   isSupportedFacebookMarketplaceUrl,
 } from "./facebook";
+import { extractFacebookListingViaBrightData } from "./brightDataFacebook";
 import {
   isBrowserWorkerFailure,
   renderFacebookMarketplaceListingForExtraction,
@@ -147,6 +148,10 @@ export function createListingExtractionPostHandler(
     }
     console.error("Listing URL extraction failed.", error);
   },
+  // Primary Facebook path (server-side Bright Data Marketplace scraper).
+  // Injection seam for tests; defaults to the real provider client, which is
+  // a no-op (missing configuration) unless BRIGHT_DATA_API_KEY is set.
+  extractBrightData: typeof extractFacebookListingViaBrightData = extractFacebookListingViaBrightData,
 ) {
   return async function POST(request: Request): Promise<Response> {
     if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json"))
@@ -184,6 +189,46 @@ export function createListingExtractionPostHandler(
 
     try {
       if (isSupportedFacebookMarketplaceUrl(url.trim())) {
+        // PRIMARY: the Bright Data Marketplace scraper for DIRECT item URLs.
+        // Missing configuration, timeout, malformed payloads and every
+        // identity failure return null with a safe enum reason, so the
+        // existing HTTP-first metadata attempt and the browser worker below
+        // continue exactly as before. Exactly one provider request is made
+        // per extraction (never retried here).
+        const brightData = await extractBrightData(url.trim(), {
+          onFallback: (reason) =>
+            console.warn(
+              JSON.stringify({ event: "facebook_brightdata_fallback", reason }),
+            ),
+        });
+        if (brightData) {
+          console.log(
+            JSON.stringify({
+              event: "facebook_brightdata_extraction",
+              itemId: brightData.itemId,
+              recordCount: brightData.recordCount,
+              elapsedMs: brightData.elapsedMs,
+            }),
+          );
+          const status = extractionStatus(brightData.extraction.found);
+          return json(
+            {
+              ok: true,
+              status,
+              retrieval: {
+                finalUrl: brightData.canonicalUrl,
+                httpStatus: brightData.httpStatus,
+                itemId: brightData.itemId,
+                elapsedMs: brightData.elapsedMs,
+                strategy: "brightdata",
+                sold: brightData.sold,
+              },
+              extraction: brightData.extraction,
+            },
+            200,
+          );
+        }
+
         // HTTP-first for direct Marketplace item URLs: public OpenGraph
         // metadata is used only when it is provably tied to the requested
         // item and genuinely usable. Every other case (share URLs, login

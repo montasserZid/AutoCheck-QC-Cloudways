@@ -20,6 +20,15 @@ import {
 import { extractWithBrowserWorker } from "../deploy/cloudways-worker/src/render";
 
 /**
+ * The handler now attempts the Bright Data Marketplace scraper first for
+ * direct item URLs. This suite must never call the real provider, so any
+ * live key is removed for the whole file: the default client reports
+ * `brightdata-not-configured` (one safe enum log) and every HTTP/browser
+ * expectation below runs exactly as before.
+ */
+delete process.env.BRIGHT_DATA_API_KEY;
+
+/**
  * Regression suite for the HTTP-first direct Marketplace item extraction.
  *
  * Every test keeps the browser fallback observable: the worker environment is

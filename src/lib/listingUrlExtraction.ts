@@ -7,6 +7,7 @@ export type ExtractionSource =
   | "meta"
   | "html"
   | "facebook-rendered"
+  | "brightdata-facebook"
   | "url";
 
 export type ListingField = keyof VehicleIntake;
@@ -251,7 +252,7 @@ function extractMileage(
   return { value: number, unit: "unknown" };
 }
 
-function normalizePriceCurrency(value: unknown): string {
+export function normalizePriceCurrency(value: unknown): string {
   const currency = cleanText(value).toUpperCase();
   return /^[A-Z]{3}$/.test(currency) ? currency : "";
 }
