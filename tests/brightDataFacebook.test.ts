@@ -16,6 +16,7 @@ import {
   type FetchPublicListingOptions,
 } from "../src/server/listing/secureFetch";
 import type { BrowserWorkerEnvironment } from "../src/server/listing/browserWorker";
+import { FacebookExtractionError } from "../src/server/listing/facebook";
 
 /**
  * Regression suite for the Bright Data Marketplace scraper as the PRIMARY
@@ -34,6 +35,10 @@ const ITEM_ID = "4948179818741919";
 const ITEM_URL = `https://www.facebook.com/marketplace/item/${ITEM_ID}/`;
 const SHARE_URL = "https://www.facebook.com/share/1HjKAsQwoy/";
 const EXAMPLE_URL = "https://example.com/listing/123";
+
+const failingBrowser = async () => {
+  throw new FacebookExtractionError("FACEBOOK_LISTING_NOT_RENDERED", "test browser failure");
+};
 
 const WORKER_ENV: BrowserWorkerEnvironment & Record<string, string> = {
   AUTOCHECK_WORKER_URL:
@@ -806,6 +811,7 @@ test("the sold flag is carried without being coerced or leaking into vehicle fie
       },
       () => undefined,
       extract,
+      failingBrowser,
     );
     const response = await handler(
       new Request("http://localhost/api/listing-extraction", {
@@ -933,7 +939,7 @@ test("an ID-bound record with no usable fields is insufficient data, not an empt
 // Handler: PRIMARY -> HTTP metadata -> browser ordering
 // ---------------------------------------------------------------------------
 
-test("Bright Data is the primary strategy for a direct item URL and wins over HTTP metadata", async () => {
+test("Chromium failure falls back to Bright Data before HTTP metadata", async () => {
   const { fetchImpl, calls } = responder();
   const { extract } = realExtractor(fetchImpl);
   const handler = createListingExtractionPostHandler(
@@ -942,6 +948,7 @@ test("Bright Data is the primary strategy for a direct item URL and wins over HT
     },
     () => undefined,
     extract,
+    failingBrowser,
   );
 
   const response = await handler(
@@ -981,6 +988,7 @@ test("a Bright Data failure falls back to the existing HTTP metadata path", asyn
         pageFetcher(FULL_OG_HTML),
         () => undefined,
         extract,
+        failingBrowser,
       );
       const response = await handler(
         new Request("http://localhost/api/listing-extraction", {
@@ -1000,7 +1008,7 @@ test("a Bright Data failure falls back to the existing HTTP metadata path", asyn
   });
 });
 
-test("when Bright Data and the HTTP path both fail, the browser worker fallback still runs", async () => {
+test("when Chromium, Bright Data and HTTP metadata fail, the initial browser failure is returned", async () => {
   const { fetchImpl } = responder(jsonl(record()), 429);
   const { extract } = realExtractor(fetchImpl);
   await withWorkerHop(async ({ workerCalls }) => {
@@ -1016,6 +1024,7 @@ test("when Bright Data and the HTTP path both fail, the browser worker fallback 
         failingFetch,
         () => undefined,
         extract,
+        failingBrowser,
       );
       const response = await handler(
         new Request("http://localhost/api/listing-extraction", {
@@ -1025,9 +1034,9 @@ test("when Bright Data and the HTTP path both fail, the browser worker fallback 
         }),
       );
       const body = await response.json();
-      assert.equal(body.ok, true);
-      assert.equal(body.retrieval.strategy, "browser-rendered");
-      assert.equal(workerCalls.length, 1);
+      assert.equal(body.ok, false);
+      assert.equal(body.code, "FACEBOOK_LISTING_NOT_RENDERED");
+      assert.equal(workerCalls.length, 0);
     });
     assert.deepEqual(brightDataReasons(lines), ["brightdata-http-error"]);
   });
@@ -1048,6 +1057,8 @@ test("without configuration the default client reports not-configured and HTTP b
           const handler = createListingExtractionPostHandler(
             pageFetcher(FULL_OG_HTML),
             () => undefined,
+            undefined,
+            failingBrowser,
           );
           const response = await handler(
             new Request("http://localhost/api/listing-extraction", {
@@ -1084,6 +1095,7 @@ test("Bright Data is attempted at most once per extraction request", async () =>
       pageFetcher(FULL_OG_HTML),
       () => undefined,
       extract,
+      failingBrowser,
     );
     const response = await handler(
       new Request("http://localhost/api/listing-extraction", {
@@ -1115,6 +1127,7 @@ test("the API key never appears in logs, errors or the API response", async () =
         pageFetcher(FULL_OG_HTML),
         () => undefined,
         success.extract,
+        failingBrowser,
       );
       const successResponse = await successHandler(
         new Request("http://localhost/api/listing-extraction", {
@@ -1132,6 +1145,7 @@ test("the API key never appears in logs, errors or the API response", async () =
         pageFetcher(FULL_OG_HTML),
         (error) => console.error("Listing URL extraction failed.", String(error)),
         failing.extract,
+        failingBrowser,
       );
       const failureResponse = await failureHandler(
         new Request("http://localhost/api/listing-extraction", {

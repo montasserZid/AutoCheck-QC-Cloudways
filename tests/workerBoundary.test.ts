@@ -17,13 +17,12 @@ import {
   renderFacebookMarketplaceListingForExtraction,
   WORKER_FAILURE_CODES,
 } from "../src/server/listing/browserWorker";
-import { createListingExtractionPostHandler } from "../src/server/listing/handler";
 import {
   closeFacebookBrowserForCleanup,
   configuredLocalChromeArgs,
   FacebookExtractionError,
 } from "../src/server/listing/facebook";
-import { resolvePublicUrl } from "../src/server/listing/secureFetch";
+import { ListingFetchError, resolvePublicUrl } from "../src/server/listing/secureFetch";
 import {
   constantTimeSecretEquals,
   isAuthorizedRequest,
@@ -277,40 +276,24 @@ test("worker unavailability and timeouts never throw an unstructured error", asy
   );
 });
 
-test("a busy worker is reported to the API caller as a graceful 503", async () => {
-  const originalFetch = globalThis.fetch;
-  const originalUrl = process.env.AUTOCHECK_WORKER_URL;
-  const originalSecret = process.env.AUTOCHECK_WORKER_SECRET;
-  process.env.AUTOCHECK_WORKER_URL = WORKER_ENV.AUTOCHECK_WORKER_URL;
-  process.env.AUTOCHECK_WORKER_SECRET = SECRET;
-  globalThis.fetch = (async () =>
-    new Response(JSON.stringify({ ok: false, code: "BUSY", error: "busy" }), {
-      status: 429,
-      headers: { "Content-Type": "application/json" },
-    })) as typeof fetch;
-  try {
-    const handler = createListingExtractionPostHandler(undefined, () => undefined);
-    const response = await handler(
-      new Request("http://localhost/api/listing-extraction", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: LISTING_URL }),
+test("the explicit worker adapter maps a busy worker to a bounded worker-busy error", async () => {
+  const privateWorkerDetail = "WORKER_BUSY_PRIVATE_DETAIL_42";
+  await assert.rejects(
+    () =>
+      renderFacebookMarketplaceListingForExtraction(LISTING_URL, {
+        configuration: CONFIGURATION,
+        fetchImpl: async () =>
+          jsonResponse(429, { ok: false, code: "BUSY", error: privateWorkerDetail }),
       }),
-    );
-    assert.equal(response.status, 503);
-    const body = await response.json();
-    assert.equal(body.ok, false);
-    assert.equal(body.status, "failed");
-    assert.equal(body.code, "worker-busy");
-    assert.equal(typeof body.error, "string");
-    assert.equal(JSON.stringify(body).includes(SECRET), false);
-  } finally {
-    globalThis.fetch = originalFetch;
-    if (originalUrl === undefined) delete process.env.AUTOCHECK_WORKER_URL;
-    else process.env.AUTOCHECK_WORKER_URL = originalUrl;
-    if (originalSecret === undefined) delete process.env.AUTOCHECK_WORKER_SECRET;
-    else process.env.AUTOCHECK_WORKER_SECRET = originalSecret;
-  }
+    (error: unknown) => {
+      assert.ok(error instanceof ListingFetchError);
+      assert.equal(error.code, "worker-busy");
+      assert.equal(error.message, "The listing reader is busy with another extraction.");
+      assert.equal(String(error).includes(SECRET), false);
+      assert.equal(String(error).includes(privateWorkerDetail), false);
+      return true;
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------

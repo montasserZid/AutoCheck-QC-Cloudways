@@ -24,9 +24,9 @@ const FACEBOOK_HOSTS = new Set([
   "web.facebook.com",
 ]);
 
-const ITEM_ID_RE = /\/marketplace\/item\/(\d+)/i;
+const ITEM_ID_RE = /^\/marketplace\/item\/(\d+)\/?$/i;
 const PRIMARY_SECTION_END_RE =
-  /\n(?:today's picks|more from marketplace|related listings|see more on facebook|email or phone number|password|log in|create new account)\b/i;
+  /\n(?:today's picks|more from marketplace|related listings|similar vehicles|related searches|see more on facebook|email or phone number|password|log in|create new account)\b/i;
 
 export type FacebookExtractionErrorCode =
   | "FACEBOOK_INVALID_URL"
@@ -113,6 +113,7 @@ interface PageLike extends PageLifecycleLike {
   ) => Promise<unknown>;
   evaluate: <T>(fn: () => T) => Promise<T>;
   setDefaultNavigationTimeout?: (timeout: number) => void;
+  setUserAgent?: (userAgent: string) => Promise<void>;
 }
 
 type FacebookRuntimeStage =
@@ -807,6 +808,13 @@ export function isDirectFacebookMarketplaceItemUrl(rawUrl: string): boolean {
   return !!parsed && isMarketplaceItemPath(parsed);
 }
 
+/** Returns the validated, canonical direct Marketplace URL or null. */
+export function validatedFacebookMarketplaceItemUrl(rawUrl: string): string | null {
+  if (!isDirectFacebookMarketplaceItemUrl(rawUrl)) return null;
+  const itemId = extractFacebookItemId(rawUrl);
+  return itemId ? canonicalFacebookItemUrl(itemId) : null;
+}
+
 export function extractFacebookItemId(rawUrl: string): string | null {
   try {
     return new URL(rawUrl).pathname.match(ITEM_ID_RE)?.[1] ?? null;
@@ -1395,7 +1403,7 @@ export function facebookRenderProbeInPage(): FacebookRenderProbe {
     readyState: document.readyState,
     bodyTextLength: bodyText.trim().length,
     hasOgUrl: ogUrl.trim().length > 0,
-    hasMarketplaceMarker: /\/marketplace\/item\/\d+/i.test(
+    hasMarketplaceMarker: /\/marketplace\/item\/\d+(?:\/|$)/i.test(
       `${window.location.pathname}\n${ogUrl}`,
     ),
     hasListingDetailMarkers: /\b(?:about this vehicle|seller'?s description)\b/i.test(bodyText),
@@ -2313,6 +2321,7 @@ async function renderFacebookMarketplaceListingAttempt(
   puppeteer: Awaited<ReturnType<typeof loadPuppeteer>>,
   plan: FacebookChromiumLaunchPlan,
   sessionCfg: FacebookRenderSessionConfig | null,
+  onResolvedDirectUrl: ((url: string) => void) | undefined,
 ): Promise<FacebookRenderedListing> {
   const attemptStartedAt = Date.now();
   const lifecycle = createFacebookLifecycleTracker(requestStartedAt, deadline);
@@ -2324,6 +2333,7 @@ async function renderFacebookMarketplaceListingAttempt(
   let lastRenderDiagnostics: Record<string, unknown> | null = null;
   let lastHttpStatus: number | null = null; // moved later; reuse variable above if needed (already exists in outer scope)
   let renderReadSucceeded = false;
+  let resolvedDirectUrl: string | undefined;
   const sessionState: {
     configured: boolean;
     loaded: boolean;
@@ -2339,7 +2349,9 @@ async function renderFacebookMarketplaceListingAttempt(
     browser = await puppeteer.launch({
       ...plan.options,
       ...(plan.serverless ? { timeout: remainingTimeout(deadline) } : {}),
-      defaultViewport: { width: 1365, height: 900 },
+      // Match the anonymous mobile Chromium context proven on Cloudways. The
+      // renderer still lets Facebook load normally; only returned text is trimmed.
+      defaultViewport: { width: 412, height: 915, isMobile: true, hasTouch: true },
     });
     browserLaunchSucceeded = true;
     lifecycle.markBrowserLaunched();
@@ -2348,6 +2360,9 @@ async function renderFacebookMarketplaceListingAttempt(
     page = await reuseOrCreateFacebookPage(browser);
     lifecycle.attachPage(page);
     page.setDefaultNavigationTimeout?.(timeoutMs);
+    await page.setUserAgent?.(
+      "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+    );
 
     // Optional: load Facebook session cookies from a persisted state file
     if (sessionCfg?.directory) {
@@ -2422,6 +2437,10 @@ async function renderFacebookMarketplaceListingAttempt(
     if (!itemId && share.ogUrl) itemId = extractFacebookItemId(share.ogUrl);
     if (!itemId) throw new FacebookExtractionError("FACEBOOK_ITEM_NOT_FOUND", "No Marketplace item ID found.");
     const canonicalUrl = canonicalFacebookItemUrl(itemId);
+    resolvedDirectUrl = canonicalUrl;
+    // This callback is deliberately invoked only after host/path/id validation.
+    // It lets the worker retain a usable direct URL if later rendering fails.
+    onResolvedDirectUrl?.(canonicalUrl);
 
     if (share.finalUrl !== canonicalUrl) {
       stage = "canonical-navigation";
@@ -2488,8 +2507,14 @@ async function renderFacebookMarketplaceListingAttempt(
         ? new FacebookExtractionError(wrapped.code, wrapped.message, {
             ...wrapped.diagnostics,
             render: lastRenderDiagnostics,
+            ...(resolvedDirectUrl ? { resolvedDirectUrl } : {}),
           })
-        : wrapped;
+        : resolvedDirectUrl
+          ? new FacebookExtractionError(wrapped.code, wrapped.message, {
+              ...wrapped.diagnostics,
+              resolvedDirectUrl,
+            })
+          : wrapped;
     logFacebookChromiumVariant(
       plan,
       "failure",
@@ -2515,6 +2540,8 @@ export interface FacebookRenderSessionConfig {
 export interface FacebookRenderOptions {
   timeoutMs?: number;
   session?: FacebookRenderSessionConfig | null;
+  /** Internal worker seam; receives only a validated canonical Marketplace URL. */
+  onResolvedDirectUrl?: (url: string) => void;
 }
 
 export async function renderFacebookMarketplaceListing(
@@ -2532,6 +2559,7 @@ export async function renderFacebookMarketplaceListing(
       : (options as FacebookRenderOptions);
   const timeoutMs = normalizedOptions.timeoutMs ?? 25000;
   const sessionCfg = (options as FacebookRenderOptions).session ?? null;
+  const onResolvedDirectUrl = (options as FacebookRenderOptions).onResolvedDirectUrl;
   const started = Date.now();
   const deadline = started + timeoutMs;
   const setupLifecycle = createFacebookLifecycleTracker(started, deadline);
@@ -2556,6 +2584,7 @@ export async function renderFacebookMarketplaceListing(
       puppeteer,
       firstPlan,
       sessionCfg,
+      onResolvedDirectUrl,
     );
   }
 
@@ -2572,6 +2601,7 @@ export async function renderFacebookMarketplaceListing(
       puppeteer,
       plan,
       sessionCfg,
+      onResolvedDirectUrl,
     );
     selectedVercelChromiumVariant = plan.name as FacebookChromiumLaunchVariantName;
     return result;

@@ -1,6 +1,7 @@
 import {
   FacebookExtractionError,
   renderFacebookMarketplaceListing,
+  validatedFacebookMarketplaceItemUrl,
   type FacebookExtractionErrorCode,
   type FacebookRenderedListing,
 } from "./facebook";
@@ -191,12 +192,20 @@ function workerFailureResponseToError(
   status: number,
   code: string,
   message: string,
+  resolvedUrl?: string,
 ): FacebookExtractionError | ListingFetchError {
+  const resolvedDirectUrl = resolvedUrl ? validatedFacebookMarketplaceItemUrl(resolvedUrl) : null;
+  const facebookError = (facebookCode: FacebookExtractionErrorCode) =>
+    new FacebookExtractionError(
+      facebookCode,
+      message,
+      resolvedDirectUrl ? { resolvedDirectUrl } : undefined,
+    );
   if (WORKER_REJECTED_TARGET_CODES.has(code))
-    return new FacebookExtractionError("FACEBOOK_INVALID_URL", message);
+    return facebookError("FACEBOOK_INVALID_URL");
   if (code === "BUSY") return workerFailure(WORKER_FAILURE_CODES.busy, message);
   if (FACEBOOK_ERROR_CODES.has(code))
-    return new FacebookExtractionError(code as FacebookExtractionErrorCode, message);
+    return facebookError(code as FacebookExtractionErrorCode);
   if (status >= 500 || status === 404)
     return workerFailure(WORKER_FAILURE_CODES.unavailable, message);
   return workerFailure(WORKER_FAILURE_CODES.invalidResponse, message);
@@ -300,11 +309,12 @@ export async function fetchRenderedListingFromWorker(
   }
 
   const code = typeof record.code === "string" ? record.code : "";
+  const resolvedUrl = typeof record.resolvedUrl === "string" ? record.resolvedUrl : undefined;
   const message =
     typeof record.error === "string" && record.error
       ? record.error
       : `The listing reader responded with status ${response.status}.`;
-  throw workerFailureResponseToError(response.status, code, message);
+  throw workerFailureResponseToError(response.status, code, message, resolvedUrl);
 }
 
 /**

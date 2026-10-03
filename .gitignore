@@ -15,3 +15,6 @@ tsconfig.tsbuildinfo
 supabase/.temp/
 
 worked_locally_fb/
+
+# Large local source datasets
+/data/source/*.json

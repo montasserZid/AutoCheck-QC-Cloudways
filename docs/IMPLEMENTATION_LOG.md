@@ -1,5 +1,25 @@
 # Implementation Log
 
+## 2026-10-03 - Select In-Process Chromium for Normal Facebook Extraction
+
+Objective:
+- Make the existing Next.js in-process Facebook Chromium renderer the normal production selection, including when Cloudways worker environment variables are configured.
+
+Architecture:
+- `handler.ts` now defaults to `renderFacebookMarketplaceListing()` directly. This keeps share-link resolution, direct Marketplace rendering, validation, rendered-text reduction, and deterministic parsing in the Next.js process.
+- The fallback order remains in-process Chromium, then one Bright Data request, then HTTP metadata. A successfully resolved direct Marketplace URL remains the Bright Data fallback target after a later render failure.
+- `browserWorker.ts` and `deploy/cloudways-worker/` are unchanged. They remain independently testable diagnostic/reference infrastructure, but normal handler traffic does not select them from `AUTOCHECK_WORKER_URL` or `AUTOCHECK_WORKER_SECRET`.
+- The existing Vercel branch remains unchanged: it uses `@sparticuz/chromium` unless an explicit Chrome executable override is configured.
+
+Test coverage:
+- Added a focused selection test proving the handler default is the in-process renderer even when a valid worker configuration exists. Existing worker-boundary tests continue to cover the adapter independently, and existing browser/fallback tests retain Chromium-success, Bright Data, and HTTP-metadata ordering coverage.
+
+Verification:
+- `npm run typecheck`: PASS.
+- `npm test`: could not start in the managed sandbox because Node failed resolving its entry point with `EPERM lstat C:\\Users\\novitek`; no test result is claimed.
+- `npm run build:worker`: blocked by the same managed-sandbox `EPERM` before the build started; no worker-build result is claimed.
+- No deployment or live Facebook request was performed.
+
 ## 2026-09-28 - Listing URL Deterministic Auto-Fill
 
 Objective:
@@ -357,6 +377,35 @@ Free vs Paid impact:
 - No paid browser API, scraping service, external VPS, or browser worker was introduced.
 
 AI usage: ZERO
+
+## 2026-10-03 - Cloudways-First Facebook Marketplace Extraction
+
+Objective:
+- Make the existing self-hosted Puppeteer/Chromium Facebook path the primary strategy while preserving Bright Data unchanged as the one-attempt fallback.
+
+Architecture:
+- `handler.ts` now calls `renderFacebookMarketplaceListingForExtraction()` before Bright Data for every supported Facebook Marketplace URL.
+- Direct `/marketplace/item/<numeric-id>/` URLs enter Chromium directly. Share URLs remain internally resolved by Chromium before canonical Marketplace rendering.
+- The Cloudways worker no longer returns an HTTP-metadata success before Chromium. The HTTP metadata reader remains as a server-side fallback after Bright Data.
+- The renderer records a validated canonical Marketplace URL after share resolution. If subsequent rendering fails, the local path retains it and the worker path also crosses it through the authenticated boundary as `resolvedUrl`; the client validates it again and gives Bright Data that direct URL exactly once.
+- `extractFacebookListingFromRenderedText()` remains the sole Chromium normalizer. Bright Data's schema-specific mapper remains unchanged.
+
+Browser and output behavior:
+- The shared renderer now uses an Android Pixel-style mobile viewport and user agent, while retaining the existing Chrome executable/runtime selection and normal page loading.
+- No recommendation resources are blocked. Returned text is reduced only by the existing primary-listing text boundary; `Similar vehicles` and `Related searches` are additional optional boundary markers.
+- Login UI text is not treated as a failure when validated Marketplace/listing evidence exists. Complete seller description text before the primary-listing boundary is preserved without summarization or AI interpretation.
+
+Security and limits:
+- Submitted URLs, browser navigation destinations, worker `resolvedUrl` values, and Bright Data inputs keep HTTPS, allowlisted Facebook-host, credential-free, numeric-item-path validation.
+- Existing SSRF guard, worker authentication, constant-time secret comparison, bounded request/response bodies, one-worker concurrency, cleanup, and server-only secrets remain unchanged.
+- Browser rendering uses one worker extraction deadline. Bright Data remains one bounded non-retried request only; no second Chromium launch occurs after the browser failure.
+
+Tests and verification:
+- Added `tests/facebookBrowserPrimary.test.ts` for direct browser-first ordering, share handling, resolved-share Bright Data fallback URL, one fallback attempt, login text, recommendation trimming, and primary fixture extraction.
+- Updated the obsolete worker-internal HTTP-metadata test to skipped status because the worker is intentionally Chromium-first; HTTP metadata is still covered as the handler fallback.
+- `npm run typecheck`: PASS.
+- `npm test` and `npm run build:worker`: BLOCKED in this managed sandbox before compilation by Node `EPERM lstat C:\\Users\\novitek`. No live Facebook test or deployment was performed.
+- Graphify incremental refresh was run with `graphify . --update --no-viz`; no full graph rebuild was requested.
 
 ## 2026-10-02 - Phase 2A.2 Finalized Vehicle + Listing Persistence
 

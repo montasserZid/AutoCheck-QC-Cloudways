@@ -5,12 +5,11 @@ import {
   extractFacebookMarketplaceItemViaHttp,
   facebookErrorToListingFetchError,
   isSupportedFacebookMarketplaceUrl,
+  renderFacebookMarketplaceListing,
+  validatedFacebookMarketplaceItemUrl,
 } from "./facebook";
 import { extractFacebookListingViaBrightData } from "./brightDataFacebook";
-import {
-  isBrowserWorkerFailure,
-  renderFacebookMarketplaceListingForExtraction,
-} from "./browserWorker";
+import { isBrowserWorkerFailure } from "./browserWorker";
 import {
   fetchPublicListingHtml,
   LISTING_FETCH_LIMITS,
@@ -21,6 +20,13 @@ import {
 export const LISTING_EXTRACTION_LIMITS = {
   bodyBytes: 8 * 1024,
 } as const;
+
+/**
+ * Normal application traffic renders Facebook in the Next.js process. The
+ * Cloudways adapter remains available for diagnostics and independent tests,
+ * but is deliberately not part of this default selection.
+ */
+export const defaultFacebookBrowserExtractor = renderFacebookMarketplaceListing;
 
 const noStoreHeaders = { "Cache-Control": "no-store" };
 
@@ -70,6 +76,10 @@ function extractionStatus(found: string[]): "extracted" | "partial" | "empty" {
   if (found.some((field) => !["listingUrl", "listingSource"].includes(field)))
     return "partial";
   return "empty";
+}
+
+function hasMeaningfulExtraction(found: string[]): boolean {
+  return found.some((field) => field !== "listingUrl" && field !== "listingSource");
 }
 
 function compactDiagnostics(
@@ -148,10 +158,12 @@ export function createListingExtractionPostHandler(
     }
     console.error("Listing URL extraction failed.", error);
   },
-  // Primary Facebook path (server-side Bright Data Marketplace scraper).
-  // Injection seam for tests; defaults to the real provider client, which is
-  // a no-op (missing configuration) unless BRIGHT_DATA_API_KEY is set.
+  // Bright Data is retained as the provider fallback. It is injected in tests.
   extractBrightData: typeof extractFacebookListingViaBrightData = extractFacebookListingViaBrightData,
+  // Primary Facebook path: the in-process renderer. Kept injectable so no
+  // test launches Chrome and fallback behavior remains deterministic.
+  extractFacebookBrowser: typeof defaultFacebookBrowserExtractor =
+    defaultFacebookBrowserExtractor,
 ) {
   return async function POST(request: Request): Promise<Response> {
     if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json"))
@@ -189,13 +201,54 @@ export function createListingExtractionPostHandler(
 
     try {
       if (isSupportedFacebookMarketplaceUrl(url.trim())) {
-        // PRIMARY: the Bright Data Marketplace scraper for DIRECT item URLs.
-        // Missing configuration, timeout, malformed payloads and every
-        // identity failure return null with a safe enum reason, so the
-        // existing HTTP-first metadata attempt and the browser worker below
-        // continue exactly as before. Exactly one provider request is made
-        // per extraction (never retried here).
-        const brightData = await extractBrightData(url.trim(), {
+        // PRIMARY: normal Chromium rendering. The renderer resolves share links
+        // before reading the direct item page, and returns only rendered listing
+        // text for the existing authoritative parser.
+        let browserFailure: unknown;
+        let extractionUrl = url.trim();
+        try {
+          const rendered = await extractFacebookBrowser(extractionUrl);
+          const extraction = extractFacebookListingFromRenderedText(
+            rendered,
+            rendered.source === "http-metadata" ? "meta" : "facebook-rendered",
+          );
+          if (hasMeaningfulExtraction(extraction.found)) {
+            const status = extractionStatus(extraction.found);
+            return json(
+              {
+                ok: true,
+                status,
+                retrieval: {
+                  finalUrl: rendered.canonicalUrl,
+                  httpStatus: 200,
+                  itemId: rendered.itemId,
+                  elapsedMs: rendered.elapsedMs,
+                  strategy: rendered.source === "http-metadata" ? "http-metadata" : "browser-rendered",
+                },
+                extraction,
+              },
+              200,
+            );
+          }
+          browserFailure = new FacebookExtractionError(
+            "FACEBOOK_EXTRACTION_PARTIAL",
+            "Facebook rendered no usable listing fields.",
+          );
+          extractionUrl = rendered.canonicalUrl;
+        } catch (error) {
+          browserFailure = error;
+          if (error instanceof FacebookExtractionError) {
+            const resolved = error.diagnostics?.resolvedDirectUrl;
+            if (typeof resolved === "string") {
+              const validated = validatedFacebookMarketplaceItemUrl(resolved);
+              if (validated) extractionUrl = validated;
+            }
+          }
+        }
+
+        // FALLBACK: one bounded Bright Data request, using a renderer-resolved
+        // direct URL when a share link reached an item before scraping failed.
+        const brightData = await extractBrightData(extractionUrl, {
           onFallback: (reason) =>
             console.warn(
               JSON.stringify({ event: "facebook_brightdata_fallback", reason }),
@@ -234,7 +287,7 @@ export function createListingExtractionPostHandler(
         // item and genuinely usable. Every other case (share URLs, login
         // walls, generic or mismatched metadata, network failure) falls back
         // to the existing browser rendering path unchanged.
-        const metadata = await extractFacebookMarketplaceItemViaHttp(url.trim(), {
+        const metadata = await extractFacebookMarketplaceItemViaHttp(extractionUrl, {
           fetchHtml: fetchListingHtml,
           onFallback: (reason) =>
             console.warn(
@@ -260,29 +313,12 @@ export function createListingExtractionPostHandler(
           );
         }
 
-        const rendered = await renderFacebookMarketplaceListingForExtraction(url.trim());
-        const extraction = extractFacebookListingFromRenderedText(
-          rendered,
-          rendered.source === "http-metadata" ? "meta" : "facebook-rendered",
-        );
-        const status = extractionStatus(extraction.found);
-        return json(
-          {
-            ok: true,
-            status,
-            retrieval: {
-              finalUrl: rendered.canonicalUrl,
-              httpStatus: 200,
-              itemId: rendered.itemId,
-              elapsedMs: rendered.elapsedMs,
-              strategy:
-                rendered.source === "http-metadata"
-                  ? "http-metadata"
-                  : "browser-rendered",
-            },
-            extraction,
-          },
-          200,
+        // Do not launch Chromium a second time. Its first failure is the most
+        // accurate final failure after both bounded fallbacks are exhausted.
+        if (browserFailure instanceof FacebookExtractionError) throw browserFailure;
+        throw browserFailure ?? new FacebookExtractionError(
+          "FACEBOOK_EXTRACTION_FAILED",
+          "Facebook browser extraction failed.",
         );
       }
 

@@ -1,15 +1,9 @@
 import {
-  extractFacebookMarketplaceItemViaHttp,
-  facebookHttpMetadataToRenderedListing,
   FacebookExtractionError,
   renderFacebookMarketplaceListing,
   type FacebookRenderedListing,
 } from "../vendor/src/server/listing/facebook";
-import {
-  ListingFetchError,
-  resolvePublicUrl,
-  type fetchPublicListingHtml,
-} from "../vendor/src/server/listing/secureFetch";
+import { ListingFetchError, resolvePublicUrl } from "../vendor/src/server/listing/secureFetch";
 import { sanitizeLogHostname, sanitizeRenderDiagnostics } from "./logging";
 
 /**
@@ -49,6 +43,8 @@ export type WorkerExtractResult =
         error: string;
         /** Log-safe only: categories, counts, booleans and timings. */
         diagnostics?: Record<string, unknown>;
+        /** Present only after the renderer validated a direct Marketplace URL. */
+        resolvedUrl?: string;
       };
     };
 
@@ -64,8 +60,6 @@ function errorMessage(error: unknown): string {
 export interface WorkerExtractOptions {
   timeoutMs?: number;
   sessionDir?: string | null;
-  /** Test seam: the HTTP metadata fetcher; defaults to AutoCheck's guarded fetch. */
-  fetchHtml?: typeof fetchPublicListingHtml;
 }
 
 export async function extractWithBrowserWorker(
@@ -75,32 +69,6 @@ export async function extractWithBrowserWorker(
   const opts = (options as WorkerExtractOptions);
   const timeoutMs = opts.timeoutMs ?? WORKER_EXTRACTION_LIMITS.timeoutMs;
   const sessionDir = opts.sessionDir ?? process.env.AUTOCHECK_FACEBOOK_SESSION_DIR ?? null;
-
-  // HTTP-first for direct Marketplace item URLs: the fetch runs through
-  // AutoCheck's own SSRF-guarded `fetchPublicListingHtml`, which resolves and
-  // validates the destination and every redirect hop before any request, so
-  // public OpenGraph metadata can be served without launching Chromium.
-  // Share URLs and unusable metadata (login walls, generic or mismatched
-  // metadata, network failure) return null immediately or after a failed
-  // attempt and continue to the browser path below, which keeps its own
-  // independent resolvePublicUrl validation.
-  const metadata = await extractFacebookMarketplaceItemViaHttp(listingUrl, {
-    fetchHtml: opts.fetchHtml,
-    onFallback: (reason) =>
-      console.warn(
-        JSON.stringify({
-          event: "facebook_http_metadata_fallback",
-          reason,
-          hostname: sanitizeLogHostname(listingUrl),
-        }),
-      ),
-  });
-  if (metadata) {
-    return {
-      status: 200,
-      body: { ok: true, rendered: facebookHttpMetadataToRenderedListing(metadata) },
-    };
-  }
 
   // Independent validation at this trust boundary. A URL that AutoCheck already
   // validated on Vercel is not trusted again: the worker resolves and checks the
@@ -115,10 +83,14 @@ export async function extractWithBrowserWorker(
     return { status: 400, body: { ok: false, code, error: errorMessage(error) } };
   }
 
+  let resolvedUrl: string | undefined;
   try {
     const rendered = await renderFacebookMarketplaceListing(listingUrl, {
       timeoutMs,
       session: sessionDir ? { directory: sessionDir } : null,
+      onResolvedDirectUrl: (url) => {
+        resolvedUrl = url;
+      },
     });
     return { status: 200, body: { ok: true, rendered } };
   } catch (error) {
@@ -132,6 +104,7 @@ export async function extractWithBrowserWorker(
           ok: false,
           code: error.code,
           error: error.message,
+          ...(resolvedUrl ? { resolvedUrl } : {}),
           ...(render ? { diagnostics: { render } } : {}),
         },
       };
