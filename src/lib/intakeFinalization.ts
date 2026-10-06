@@ -18,5 +18,5 @@ export async function finalizeIntake(
     typeof (payload as FinalizationResponse).vehicleId !== "string" ||
     typeof (payload as FinalizationResponse).listingId !== "string")
     throw new Error((payload as { error?: string } | null)?.error || "We couldn't save this listing. Please try again.");
-  return payload as FinalizationResponse;
+  return { ...(payload as Omit<FinalizationResponse, "submissionKey">), submissionKey };
 }

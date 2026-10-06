@@ -378,6 +378,95 @@ Free vs Paid impact:
 
 AI usage: ZERO
 
+## Phase 5A — Knowledge importer dry-run foundation (not a database import)
+
+- Added `scripts/knowledge/importer.ts`: a trusted-machine CLI that streams root `brands` entries, computes the source SHA-256 with streaming I/O, validates source counts and nullable aggregate fields, and reports deterministic dry-run totals without any database client or writes.
+- The dry-run preserves source-model identity separately from canonical mappings: imported source models are counted as unmapped until a reviewed mapping artifact exists. It uses deterministic Unicode-folded keys only; it does not create aliases or fuzzy matches.
+- Year `0`/out-of-domain values, add-your-complaint category artifacts, and structurally incomplete aggregate problems are counted as quarantined/anomalous rather than discarded. Nullable repair and aggregate fields remain null.
+- Added `npm run knowledge:import -- --dry-run`; `--sample` implements deterministic future sample selection (Yaris, Explorer, reviewed spelling families, and invalid-year rows). Phase 5A intentionally rejects write mode: no Supabase connection or data write occurred.
+- Added focused importer unit tests and a dedicated TypeScript CLI configuration. A streamed sample dry-run against the source completed with SHA-256 `2617b681a5113a238e0f4920a8e561e8a4ce351206e528ce1cace082be17425f`; it processed 13 selected source models and performed zero database writes.
+- Deferred: transactional database batching, `import_run` checkpoint persistence, and idempotent SQL upserts require the approved PostgreSQL client dependency. The managed environment denied npm registry/cache access (`EACCES`), so no unsafe HTTP pseudo-transaction implementation was added.
+
+## Phase 5A continuation — transactional importer write path (not executed)
+
+- Added an explicit `pg`-backed trusted-machine write mode using `AUTOCHECK_SUPABASE_SESSION_POOLER_URL`. The value is only passed to the client constructor and is never logged.
+- Each source model-year is one `BEGIN`/`COMMIT` unit. Make/model/year/category/problem/solution upserts occur before the `import_run` checkpoint update, which is committed in the same transaction. Any error issues `ROLLBACK` and leaves no checkpoint for that unit.
+- Writes use deployed natural conflict keys; rerunning a committed path updates the same hierarchy rows. A supplied `--run-key` resumes after the last committed source path.
+- No write command, database connection, sample import, or production import was executed in this phase continuation.
+
+## Phase 5A continuation — bounded multi-row aggregate writes
+
+- Replaced per-problem and per-solution insert loops with parameterized multi-row `INSERT ... VALUES` statements. Both aggregate problems and common solutions are split into batches of at most 500 rows.
+- Aggregate-problem batches use the deployed `(category_id, source_problem_title, source_url)` conflict key and `RETURNING id, category_id, source_problem_title, source_url`. Returned rows are mapped back to the source natural key before solution batches are constructed.
+- Solutions use the deployed `(problem_id, source_ordinal)` conflict key. The model-year transaction remains `BEGIN` -> hierarchy/category writes -> problem batches -> solution batches -> checkpoint -> `COMMIT`; errors issue `ROLLBACK`.
+- Focused mock tests passed for transaction/checkpoint ordering and rollback behavior. No `--write` command, database connection, or database write was performed.
+
+## Phase 5A completion follow-up — idempotent bounded bulk batches
+
+- Aggregate problems and solutions use genuine multi-row `VALUES` statements, capped at 500 rows. At 16 parameters/problem the cap is 8,000 parameters; at 4 parameters/solution it is 2,000, both well below PostgreSQL's 65,535 parameter limit.
+- Non-null problem URLs use the deployed natural `ON CONFLICT (category_id, source_problem_title, source_url)` constraint. Because PostgreSQL permits repeated `NULL` values in that unique constraint, null-URL rows are first resolved by an `IS NULL` natural-key lookup; only missing rows are inserted. This preserves retry idempotency without a migration.
+- `RETURNING id, category_id, source_problem_title, source_url` maps bulk problem rows to their common solutions deterministically. A 501-problem/solution focused test verified two bulk statements for each table (500 + 1), correct returned-ID use, and no per-row problem/solution insert loop.
+- A rollback-only mock resume test confirms that a saved `Toyota/Yaris/2010` checkpoint resumes at `Toyota/Yaris/2011`; dry-run tests require no database object. Direct focused tests passed 8/8. A real full-source dry-run completed with the audited counts (36 makes, 1,474 models, 10,607 years, 88,384 categories, 95,065 aggregate problems, and 121,170 solutions) and zero database activity.
+
+## Phase 4D.1 / Phase 5C prerequisite — Snapshot coverage identity
+
+- Added forward migration `202610030002_knowledge_snapshot_scope.sql`. `source_sha256` remains the immutable physical file hash; import coverage identity is now `scope` (`full` or `sample`) plus, for samples, a deterministic `sample_definition_hash`.
+- Partial unique indexes permit one full snapshot per source SHA and independently scoped sample snapshots per source SHA/sample-definition hash. Existing snapshots backfill as `full`. An identity trigger prevents later mutation of SHA, scope, or sample definition.
+- Import-run resume derives scope from its snapshot. A reused run key must match source SHA, scope, and sample-definition hash; sample and full runs cannot cross-resume.
+- Sample definition `phase5c-representative-v2` hashes to `7b88dd115f2740b6bfdfcc9c51178b23c3a7925d31b4a03f9cc55e3cebe589dd`. It adds narrow anomaly paths `Buick/Skylark/1970` (artifact category) and `Dodge/Ram 1500/2009` (incomplete Recalls aggregate) while retaining existing representative families and both year-zero rows.
+
+## Phase 4D.1 correction — Snapshot scope migration hardening
+
+- The undeployed scope migration now checks that any `sample_definition_hash` is exactly 64 lowercase hexadecimal characters; `char(64)` length alone was not sufficient.
+- The immutable identity trigger function now uses `SET search_path = pg_catalog` and retains its explicit execute revokes for browser roles.
+- The rollback-only snapshot-scope SQL test now covers legacy default/full semantics, invalid scope and malformed hash rejection, identity mutation rejection, ordinary status updates, and the exact partial-index `ON CONFLICT` forms used by the importer.
+
+## 2026-10-03 - Knowledge Database Schema (Phase 4B)
+
+Scope:
+- Added schema structure, constraints, access controls, and rollback-only SQL verification for the approved CarComplaints aggregate knowledge domain.
+- No importer, source JSON access, sample data import, report/API/UI integration, AI, payment, entitlement, operational-table change, or deployment was performed.
+
+Migration:
+- `supabase/migrations/202610030001_knowledge_schema.sql`
+- Creates `knowledge.source_snapshot`, `make`, `canonical_model`, `source_model`, `model_alias`, `model_year`, `category_observation`, `aggregate_problem`, `common_solution`, and `import_run`.
+- All hierarchy foreign keys use `on delete restrict`. Source/canonical identity remains separate; aliases deliberately permit multiple canonical candidates for a single normalized key.
+- Year zero is representable only as `quarantined_invalid_year` with a reason. Counts are non-negative, source-derived optional fields stay nullable, and source quality/artifact/incomplete statuses are explicitly constrained.
+- Five measured-query indexes were added: mapped source-model lookup, enabled alias lookup, eligible category lookup, eligible aggregate-problem ordering, and common-solution ordering. The potentially redundant eligible model-year partial index is intentionally deferred pending a measured query plan, as specified by the approved design.
+- Every knowledge table has enabled and forced RLS, a restrictive deny policy for `anon`/`authenticated`, revoked browser-role/schema privileges, and `service_role` schema/table access only.
+
+Tests:
+- Added `supabase/tests/002_knowledge_schema.sql`. It uses only tiny synthetic rows inside a transaction and rolls back. It checks table presence, key hierarchy behavior, ambiguity, mapping statuses, invalid year/count/severity rejection, nullable fields, natural uniqueness, RLS/privileges, expected indexes, and absence of operational/knowledge foreign-key coupling.
+
+Verification:
+- `npm run typecheck`: PASS.
+- `npm test`: could not start in the managed sandbox because Node failed resolving its entry point with `EPERM lstat C:\\Users\\novitek`; no test result is claimed.
+- `npm run build`: PASS. It retains the pre-existing unused-variable lint warning and Node 20 Supabase SDK deprecation warning.
+- SQL migration verification could not run here: no local `psql` or Supabase CLI/database test runner is available. `002_knowledge_schema.sql` must be run with `psql` after applying migrations in a database-capable review environment; it always rolls back.
+- No database migration was applied from this environment.
+
+## 2026-10-03 - Knowledge Migration Pre-Deployment Corrections (Phase 4C.1)
+
+Scope:
+- Corrected the unapplied `202610030001_knowledge_schema.sql` after read-only migration review. No second corrective migration was created because this migration has not been deployed.
+
+Corrections:
+- `canonical_model` now has the integrity-only unique target `(id, make_id)`. `source_model` and `model_alias` now use composite `(canonical_model_id, make_id)` foreign keys, making cross-make and cross-snapshot canonical mappings impossible at the database layer.
+- `source_model` now uses an exact mapping invariant: only `mapped` rows may have a canonical model; `unmapped`, `ambiguous`, and `quarantined` retain no single canonical ID. A single ID cannot represent source ambiguity safely.
+- Invalid-year quarantine is symmetric: eligible years are 1886–2100; only out-of-domain years may use `quarantined_invalid_year`, and they require a reason. Year zero remains retainable only as invalid-year quarantine data.
+- Category and aggregate-problem visibility is symmetric: eligible rows require no quarantine reason; quarantined rows require one.
+- Added explicit sequence `USAGE` for `service_role` on all ten identity sequences and explicit revokes for `PUBLIC`, `anon`, and `authenticated`. `USAGE` is the minimum required for identity `nextval()` during inserts; no sequence `SELECT` is granted.
+
+Tests:
+- Expanded `supabase/tests/002_knowledge_schema.sql` with same-make/cross-make/cross-snapshot mapping checks, alias protection, mapping-state symmetry, invalid-year symmetry, category/problem quarantine symmetry, all browser table-DML privilege denials, policy structure checks, sequence grants, restrictive FK-delete checks, and an actual rollback-only `SET LOCAL ROLE service_role` identity insert.
+
+Verification:
+- `npm run typecheck`: PASS.
+- `npm test`: could not start in the managed sandbox because Node failed resolving its entry point with `EPERM lstat C:\\Users\\novitek`; no test result is claimed.
+- `npm run build`: PASS, retaining the pre-existing unused-variable lint warning and Node 20 Supabase SDK deprecation warning.
+- PostgreSQL SQL tests were not executed: this environment has no local `psql`, Supabase CLI, or database runner. In particular, the new `SET LOCAL ROLE service_role` identity-insert assertion remains pending target-database verification.
+- No migration, database change, import, or deployment was performed.
+
 ## 2026-10-03 - Cloudways-First Facebook Marketplace Extraction
 
 Objective:

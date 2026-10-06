@@ -1,0 +1,1 @@
+{"extends":"./tsconfig.json","compilerOptions":{"module":"CommonJS","moduleResolution":"Node","outDir":"./output/knowledge","rootDir":".","noEmit":false,"incremental":false,"plugins":[]},"include":["scripts/knowledge/**/*.ts"],"exclude":["node_modules",".next","output"]}

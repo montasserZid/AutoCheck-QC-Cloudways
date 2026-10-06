@@ -16,7 +16,7 @@ import {
   validateBooking,
 } from "../src/lib/validation";
 import { demoVehicleIntake } from "../src/lib/mockData";
-import { readLocal, writeLocal, clearLocalData } from "../src/lib/localStorage";
+import { readLocal, writeLocal, clearLocalData, getSubmittedIntakeContext, saveSubmittedIntakeContext } from "../src/lib/localStorage";
 import {
   CONTACT_LIMITS,
   submitContactMessage,
@@ -1920,8 +1920,26 @@ test("finalization client posts its supplied key and exposes stable IDs", async 
   let sent = "";
   const result = await finalizeIntake({ ...emptyIntake, make: "Honda", model: "Civic" }, finalizedRequest.submissionKey, async (_url, init) => {
     sent = String(init?.body);
-    return Response.json({ ok: true, vehicleId: "vehicle-1", listingId: "listing-1", submissionKey: finalizedRequest.submissionKey, replayed: false }, { status: 201 });
+    return Response.json({ ok: true, vehicleId: "vehicle-1", listingId: "listing-1", replayed: false }, { status: 201 });
   });
   assert.equal(JSON.parse(sent).submissionKey, finalizedRequest.submissionKey);
   assert.deepEqual(result, { ok: true, vehicleId: "vehicle-1", listingId: "listing-1", submissionKey: finalizedRequest.submissionKey, replayed: false });
+});
+
+test("submitted intake context retains the locally generated finalization key", () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const values = new Map<string, string>();
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { localStorage: {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+    get length() { return values.size; }, key: () => null,
+  } } });
+  try {
+    saveSubmittedIntakeContext({ vehicleId: "vehicle-1", listingId: "listing-1", submissionKey: finalizedRequest.submissionKey });
+    assert.deepEqual(getSubmittedIntakeContext(), { vehicleId: "vehicle-1", listingId: "listing-1", submissionKey: finalizedRequest.submissionKey });
+  } finally {
+    if (original) Object.defineProperty(globalThis, "window", original);
+    else Reflect.deleteProperty(globalThis, "window");
+  }
 });

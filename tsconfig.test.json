@@ -17,6 +17,9 @@
     "tests/facebookStructuredDiagnostic.test.ts",
     "tests/brightDataFacebook.test.ts",
     "tests/facebookBrowserPrimary.test.ts",
+    "tests/knowledgeImporter.test.ts",
+    "tests/freeQuickCheck.test.ts",
+    "scripts/knowledge/importer.ts",
     "deploy/cloudways-worker/scripts/facebookStructured.ts",
     "deploy/cloudways-worker/scripts/facebook-structured-diagnostic.ts"
   ],
