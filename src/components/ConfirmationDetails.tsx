@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Check, ArrowRight } from "lucide-react";
+import { ClipboardCheck, ArrowRight } from "lucide-react";
 import { getStoredInspectionRequest } from "@/lib/localStorage";
 import type { InspectionRequest } from "@/types/domain";
 import { titleCaseStatus } from "@/lib/format";
+import { VehicleIdentityPlate } from "./dossier/VehicleIdentityPlate";
 export function ConfirmationDetails() {
   const [request, setRequest] = useState<InspectionRequest | null>(null);
   const [ready, setReady] = useState(false);
@@ -12,7 +13,7 @@ export function ConfirmationDetails() {
     setRequest(getStoredInspectionRequest());
     setReady(true);
   }, []);
-  if (!ready) return <p role="status">Loading request...</p>;
+  if (!ready) return <section className="loading-panel" role="status"><p className="eyebrow">Your inspection plan</p><h1>Opening your saved details.</h1><div className="dossier-processing-rule" aria-hidden="true" /></section>;
   if (!request)
     return (
       <section className="empty-state">
@@ -22,18 +23,18 @@ export function ConfirmationDetails() {
           here.
         </p>
         <Link className="button button-primary" href="/inspection">
-          Book a Mobile Inspection
+          Prepare an inspection request
         </Link>
       </section>
     );
   return (
     <section className="confirmation-panel">
       <span className="confirmation-icon">
-        <Check size={30} />
+        <ClipboardCheck size={30} />
       </span>
-      <p className="eyebrow">Request saved / {request.id}</p>
+      <p className="eyebrow">Saved on this device / {request.id}</p>
       <h1>
-        Your inspection details
+        Your inspection details{" "}
         <br />
         are in one place.
       </h1>
@@ -41,6 +42,7 @@ export function ConfirmationDetails() {
         Thanks, {request.buyerName}. Your requested time is shown below. This is
         not a confirmed appointment.
       </p>
+      <VehicleIdentityPlate title={request.vehicleTitle} vehicle={{ vin: request.vehicleVin }} compact stateLabel="SAVED LOCALLY · NO APPOINTMENT RESERVED" />
       <dl className="summary-grid">
         {[
           ["Vehicle", request.vehicleTitle],
@@ -63,7 +65,12 @@ export function ConfirmationDetails() {
         ))}
       </dl>
       <div className="next-steps">
-        <h2>What happens next?</h2>
+        <h2>Your next step is outside this preview.</h2>
+        <p>
+          Ask the seller to agree to an independent inspection. Contact a
+          qualified inspector directly to confirm availability, scope and price
+          before travelling.
+        </p>
         <p>
           Once live inspection booking is enabled, these details can be used to
           coordinate availability and confirm the time and price with you.

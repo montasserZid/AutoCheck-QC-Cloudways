@@ -13,8 +13,7 @@ export default function PrivacyPage() {
         <div className="page-heading">
           <p className="eyebrow">Privacy</p>
           <h1>
-            Your information.
-            <br />
+            Your information. <br />
             Within your control.
           </h1>
           <p>This notice describes the current preview experience.</p>
@@ -34,11 +33,13 @@ export default function PrivacyPage() {
           <section>
             <h2>Where it goes</h2>
             <p>
-              The contact form sends its fields to AutoCheck QC. Listing,
-              report and inspection-request data remain in this browser and are
-              not sent to a report provider, inspector or payment service.
-              Anyone with access to this browser profile may be able to see its
-              locally saved information.
+              The contact form sends its fields to AutoCheck QC. Listing links
+              are sent to the extraction service, and reviewed intake details
+              are submitted to AutoCheck to save the listing and support the
+              Free Quick Check. Full report previews and inspection requests
+              remain local; no request is sent to an inspector or payment
+              service. Anyone with access to this browser profile may be able to
+              see its locally saved information.
             </p>
           </section>
           <section>
@@ -55,10 +56,10 @@ export default function PrivacyPage() {
             <p>
               This removes AutoCheck QC listings, reports, inspection drafts and
               older locally saved contact messages from this browser. It does
-              not delete a contact message already submitted to AutoCheck QC;
-              use the Privacy / data deletion contact topic for that request.
-              Close other AutoCheck QC tabs first so they do not save an open
-              draft again.
+              not delete intake details or contact messages already submitted to
+              AutoCheck QC; use the Privacy / data deletion contact topic for
+              that request. Close other AutoCheck QC tabs first so they do not
+              save an open draft again.
             </p>
             <ClearDataButton />
           </section>

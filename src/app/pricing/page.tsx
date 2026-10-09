@@ -14,8 +14,7 @@ export default function PricingPage() {
         <div className="page-heading">
           <p className="eyebrow">A smaller step before a big purchase</p>
           <h1>
-            Know what you are
-            <br />
+            Know what you are <br />
             getting into.
           </h1>
           <p>Choose the detail you need for the car you are considering.</p>

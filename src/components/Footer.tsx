@@ -7,14 +7,15 @@ export function Footer() {
     <footer className="site-footer">
       <Container className="footer-grid">
         <div>
-          <h2>AutoCheck QC</h2>
-          <p>Used-car listing pre-screening for Montreal and Quebec buyers.</p>
+          <p className="eyebrow">The buyer’s vehicle dossier</p>
+          <h2>Know more. Buy better.</h2>
+          <p>AutoCheck QC · Made for the questions before the keys.</p>
           <p className="fine-print">{siteConfig.disclaimer}</p>
         </div>
         <div>
           <h3>Product</h3>
           <Link href="/check">Check a Car</Link>
-          <Link href="/inspection">Book Inspection</Link>
+          <Link href="/inspection">Prepare an Inspection</Link>
           <Link href="/example-report">Example Report</Link>
           <Link href="/pricing">Pricing</Link>
         </div>

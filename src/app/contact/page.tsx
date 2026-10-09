@@ -15,8 +15,7 @@ export default function ContactPage() {
         <div className="page-heading">
           <p className="eyebrow">Contact AutoCheck QC</p>
           <h1>
-            Good questions deserve
-            <br />
+            Good questions deserve <br />
             clear answers.
           </h1>
           <p>
@@ -25,6 +24,7 @@ export default function ContactPage() {
           </p>
         </div>
         <div className="two-column contact-layout">
+          <ContactForm />
           <div className="contact-topics">
             {contactTopics.map((t, i) => (
               <section key={t}>
@@ -51,7 +51,6 @@ export default function ContactPage() {
               </section>
             ))}
           </div>
-          <ContactForm />
         </div>
       </Container>
     </main>

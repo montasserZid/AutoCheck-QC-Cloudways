@@ -11,22 +11,43 @@ import {
 } from "@/lib/localStorage";
 import { requestFreeQuickCheck } from "@/lib/freeQuickCheckClient";
 import type { FreeQuickCheckResponse } from "@/lib/freeQuickCheck";
-import type { DemoBuyerReport } from "@/types/domain";
+import type { DemoBuyerReport, VehicleIntake } from "@/types/domain";
+import { VehicleIdentityPlate } from "./dossier/VehicleIdentityPlate";
 import { ReportView } from "./ReportView";
 import { ProgressSteps } from "./ProgressSteps";
 import { FreeQuickCheckView } from "./FreeQuickCheckView";
 export function ReportExperience() {
   const params = useSearchParams();
   const [report, setReport] = useState<DemoBuyerReport | null>(null);
-  const [freeReport, setFreeReport] = useState<FreeQuickCheckResponse | null>(null);
+  const [freeReport, setFreeReport] = useState<FreeQuickCheckResponse | null>(
+    null,
+  );
   const [freeError, setFreeError] = useState("");
   const [ready, setReady] = useState(false);
+  const [vehicle, setVehicle] = useState<VehicleIntake | null>(null);
   useEffect(() => {
-      const type = params.get("type") ?? getStoredReportType();
+    setVehicle(getStoredIntake());
+    const type = params.get("type") ?? getStoredReportType();
     if (type === "free") {
       const context = getSubmittedIntakeContext();
-      if (!context) { setFreeError("Your saved listing is unavailable in this browser."); setReady(true); return; }
-      requestFreeQuickCheck({ listingId: context.listingId, submissionKey: context.submissionKey }).then(setFreeReport).catch((error: unknown) => setFreeError(error instanceof Error ? error.message : "Historical data is temporarily unavailable. Please try again.")).finally(() => setReady(true));
+      if (!context) {
+        setFreeError("Your saved listing is unavailable in this browser.");
+        setReady(true);
+        return;
+      }
+      requestFreeQuickCheck({
+        listingId: context.listingId,
+        submissionKey: context.submissionKey,
+      })
+        .then(setFreeReport)
+        .catch((error: unknown) =>
+          setFreeError(
+            error instanceof Error
+              ? error.message
+              : "Historical data is temporarily unavailable. Please try again.",
+          ),
+        )
+        .finally(() => setReady(true));
       return;
     }
     const intake = getStoredIntake();
@@ -37,9 +58,44 @@ export function ReportExperience() {
     }
     setReady(true);
   }, [params]);
-  if (!ready) return <p role="status">Preparing your buyer report...</p>;
-  if (freeReport) return <><ProgressSteps current={3} /><FreeQuickCheckView report={freeReport} onRetry={() => window.location.reload()} /></>;
-  if (freeError) return <section className="empty-state"><h1>Free Quick Check unavailable</h1><p>{freeError}</p><button className="button button-primary" type="button" onClick={() => window.location.reload()}>Try again</button><Link className="text-link" href="/check">Check another car</Link></section>;
+  if (!ready)
+    return (
+      <section className="loading-panel" role="status">
+        <p className="eyebrow">Your decision desk</p>
+        <h1>Preparing your buyer report.</h1>
+        <p>Bringing the available vehicle information together.</p>
+        <div className="dossier-processing-rule" aria-hidden="true" />
+        <VehicleIdentityPlate vehicle={vehicle ?? undefined} pending={!vehicle} compact stateLabel="PREPARING THE DOSSIER" />
+      </section>
+    );
+  if (freeReport)
+    return (
+      <>
+        <ProgressSteps current={3} />
+        <FreeQuickCheckView
+          report={freeReport}
+          vehicle={vehicle ?? undefined}
+          onRetry={() => window.location.reload()}
+        />
+      </>
+    );
+  if (freeError)
+    return (
+      <section className="empty-state">
+        <h1>Free Quick Check unavailable</h1>
+        <p>{freeError}</p>
+        <button
+          className="button button-primary"
+          type="button"
+          onClick={() => window.location.reload()}
+        >
+          Try again
+        </button>
+        <Link className="text-link" href="/check">
+          Check another car
+        </Link>
+      </section>
+    );
   if (!report)
     return (
       <section className="empty-state">
@@ -56,7 +112,7 @@ export function ReportExperience() {
   return (
     <>
       <ProgressSteps current={3} />
-      <ReportView report={report} />
+      <ReportView report={report} vehicle={vehicle ?? undefined} />
     </>
   );
 }

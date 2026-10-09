@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./phase-one.css";
+import "./product.css";
+import "./dossier-system.css";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 

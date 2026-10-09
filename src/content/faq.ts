@@ -32,7 +32,7 @@ export const faqItems = [
   {
     question: "Can you read Facebook Marketplace ads?",
     answer:
-      "Paste the ad text to extract common vehicle details. A link is saved for reference, but marketplace pages are not read in this preview.",
+      "Paste a public listing link and AutoCheck will try to read accessible vehicle details. Protected or unavailable pages may need pasted ad text or manual entry instead. Review all extracted details before continuing.",
   },
   {
     question: "Can you analyze screenshots?",
@@ -47,7 +47,7 @@ export const faqItems = [
   {
     question: "Can I use AutoTrader?",
     answer:
-      "Yes. Paste the ad text and confirm the extracted year, model, mileage and asking price. The link alone does not provide vehicle details here.",
+      "Yes. Try the public listing link or paste the ad text, then review the extracted year, model, mileage and asking price. If the page cannot be read, pasted text and manual entry remain available.",
   },
   {
     question: "Can I use a dealer listing?",
@@ -97,6 +97,6 @@ export const faqItems = [
   {
     question: "Is my data private?",
     answer:
-      "Listing details, reports and request drafts remain in this browser. Anyone using the same browser profile may be able to access them. Avoid sensitive documents or unnecessary seller information, and use the deletion control on the Privacy page to clear saved data.",
+      "Drafts, report previews and inspection-request details are saved in this browser. Listing extraction and finalized intake also use AutoCheck server services. Anyone using your browser profile may access local drafts. Avoid unnecessary personal information; the Privacy page explains local deletion and contacting us about server-held data.",
   },
 ];

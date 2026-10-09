@@ -1,6 +1,7 @@
 "use client";
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
@@ -9,12 +10,12 @@ import {
   ImagePlus,
   PenLine,
   ShieldCheck,
-  X,
+  CarFront,
+  LoaderCircle,
 } from "lucide-react";
 import type { VehicleIntake } from "@/types/domain";
 import { emptyIntake, extractListing } from "@/lib/listingExtraction";
 import { extractListingUrl } from "@/lib/listingUrlClient";
-import { formatFileSize } from "@/lib/format";
 import {
   getStoredIntake,
   readLocal,
@@ -33,6 +34,9 @@ import { vehicleTitle } from "@/lib/reportEngine";
 import { finalizeIntake } from "@/lib/intakeFinalization";
 import { ProgressSteps } from "./ProgressSteps";
 import { PricingCards } from "./PricingCards";
+import { DossierIntake } from "./dossier/DossierIntake";
+import { VehicleReviewEvidence } from "./dossier/VehicleReviewEvidence";
+import { VehicleIdentityPlate } from "./dossier/VehicleIdentityPlate";
 
 type Method = "text" | "url" | "images" | "manual";
 interface Draft {
@@ -49,11 +53,13 @@ const methods = [
   { id: "images", label: "Screenshots", icon: ImagePlus },
   { id: "manual", label: "Manual", icon: PenLine },
 ] as const;
-export function VehicleIntakeFlow() {
+export function VehicleIntakeFlow({ landing = false }: { landing?: boolean }) {
   const router = useRouter();
   const [form, setForm] = useState<VehicleIntake>(emptyIntake);
   const [step, setStep] = useState(0);
-  const [method, setMethod] = useState<Method>("text");
+  const [method, setMethod] = useState<Method>("url");
+  const [revealed, setRevealed] = useState(false);
+  const [revealVehicle, setRevealVehicle] = useState<VehicleIntake | null>(null);
   const [found, setFound] = useState<string[]>([]);
   const [uncertain, setUncertain] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -66,6 +72,8 @@ export function VehicleIntakeFlow() {
   const heading = useRef<HTMLHeadingElement>(null);
   const submissionKeyRef = useRef<string | undefined>(undefined);
   const finalizingRef = useRef(false);
+  const leavingLanding = useRef(false);
+  const Heading = landing ? "h2" : "h1";
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const stored = getStoredIntake();
@@ -118,12 +126,34 @@ export function VehicleIntakeFlow() {
     setReady(true);
   }, []);
   useEffect(() => {
-    if (ready)
+    if (ready) {
       setStorageOk(
-        writeLocal("intake-draft", { form, step, method, found, uncertain, submissionKey }),
+        writeLocal("intake-draft", {
+          form,
+          step: revealed ? 1 : step,
+          method,
+          found,
+          uncertain,
+          submissionKey,
+        }),
       );
-  }, [form, step, method, found, uncertain, submissionKey, ready]);
+      // Persist the same draft before handing off from the landing to /check.
+      if (landing && step > 0 && leavingLanding.current) router.push("/check");
+    }
+  }, [
+    form,
+    step,
+    method,
+    found,
+    uncertain,
+    submissionKey,
+    ready,
+    landing,
+    router,
+    revealed,
+  ]);
   function changeStep(next: number) {
+    if (landing && next > 0) leavingLanding.current = true;
     setStep(next);
     setErrors({});
     setNotice("");
@@ -164,6 +194,7 @@ export function VehicleIntakeFlow() {
   }
   async function provide(event: FormEvent) {
     event.preventDefault();
+    if (urlStatus === "retrieving") return;
     if (!validListingUrl(form.listingUrl ?? "")) {
       setErrors({
         listingUrl: "Use a complete http:// or https:// listing link.",
@@ -182,11 +213,12 @@ export function VehicleIntakeFlow() {
       }
       setErrors({});
       setUrlStatus("retrieving");
-      setNotice("Reading listing...");
+      setNotice("");
       const response = await extractListingUrl(listingUrl);
       setUrlStatus("idle");
       if (response.ok) {
         const extracted = response.extraction;
+        setRevealVehicle({ ...emptyIntake, ...extracted.details, listingUrl: extracted.details.listingUrl ?? listingUrl });
         setForm((f) => ({
           ...emptyIntake,
           ...f,
@@ -197,7 +229,7 @@ export function VehicleIntakeFlow() {
         }));
         setFound(extracted.found);
         setUncertain(extracted.uncertain);
-        changeStep(1);
+        setRevealed(true);
         setNotice(
           response.status === "extracted"
             ? "Listing extracted. Review and correct anything that looks off before continuing."
@@ -208,7 +240,7 @@ export function VehicleIntakeFlow() {
         return;
       }
       setNotice(
-        `${response.error} Paste the listing description below for deterministic text extraction, or choose Manual entry.`,
+        `${response.error} Paste the listing description below, or choose Manual entry.`,
       );
       setMethod("text");
       return;
@@ -225,6 +257,7 @@ export function VehicleIntakeFlow() {
       return;
     }
     const result = extractListing(form.listingText);
+    setRevealVehicle({ ...emptyIntake, ...result.details, listingUrl: form.listingUrl, listingSource: "Pasted listing" });
     setForm((f) => ({
       ...emptyIntake,
       listingUrl: f.listingUrl,
@@ -234,7 +267,8 @@ export function VehicleIntakeFlow() {
     }));
     setFound(result.found);
     setUncertain(result.uncertain);
-    changeStep(1);
+    setNotice("");
+    setRevealed(true);
   }
   async function review(event: FormEvent) {
     event.preventDefault();
@@ -266,133 +300,58 @@ export function VehicleIntakeFlow() {
       submissionKeyRef.current = undefined;
       changeStep(2);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "We couldn't save this listing. Please try again.");
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "We couldn't save this listing. Please try again.",
+      );
     } finally {
       finalizingRef.current = false;
       setFinalizing(false);
     }
   }
-  function status(key: keyof VehicleIntake) {
-    const value = form[key];
-    const missing =
-      value === null ||
-      value === "" ||
-      value === "unknown" ||
-      value === undefined;
+  // Intake and review share the same draft and handoff contracts.
+  if (step === 0)
+    return <DossierIntake
+      form={form} revealVehicle={revealVehicle} method={method} pending={urlStatus === "retrieving"}
+      revealed={revealed} ready={ready} landing={landing} storageOk={storageOk}
+      notice={notice} errors={errors} found={found}
+      onMethod={(next) => { setMethod(next); setErrors({}); setNotice(""); }}
+      onUpdate={update} onFiles={files} onSubmit={provide}
+      onContinue={() => { setRevealed(false); changeStep(1); }}
+      onBack={() => { setRevealed(false); setNotice(""); }}
+    />;
+  if (!ready)
     return (
-      <span
-        className={`field-status ${missing ? "missing" : found.includes(key) ? "found" : "confirm"}`}
-      >
-        {uncertain.includes(key) && missing
-          ? "Needs confirmation"
-          : missing
-            ? "Missing"
-            : found.includes(key)
-              ? "Found"
-              : "Needs confirmation"}
-      </span>
+      <section className="loading-panel" role="status">
+        <p className="eyebrow">Your saved dossier</p><h1>Opening your listing.</h1>
+        <div className="dossier-processing-rule" aria-hidden="true" />
+      </section>
     );
-  }
-  function field(
-    key:
-      | "year"
-      | "make"
-      | "model"
-      | "trim"
-      | "mileageKm"
-      | "askingPriceCad"
-      | "city"
-      | "vin"
-      | "listingTitle"
-      | "sellerName"
-      | "location"
-      | "transmission"
-      | "drivetrain"
-      | "engine"
-      | "priceCurrency",
-    label: string,
-    numeric = false,
-  ) {
+  if (landing && step > 0)
     return (
-      <div className="review-field" key={key}>
-        <label htmlFor={key}>
-          <span>
-            {label}
-            {["make", "model"].includes(key) ? " *" : ""}
-          </span>
-          {status(key)}
-        </label>
-        <input
-          id={key}
-          name={key}
-          value={form[key] ?? ""}
-          type={numeric ? "number" : "text"}
-          inputMode={numeric ? "numeric" : "text"}
-          aria-invalid={!!errors[key]}
-          aria-describedby={errors[key] ? `${key}-error` : undefined}
-          maxLength={key === "vin" ? 17 : 100}
-          placeholder={
-            numeric ? "Unknown" : key === "vin" ? "Not provided" : ""
-          }
-          onChange={(e) =>
-            update(
-              key,
-              numeric
-                ? e.target.value === ""
-                  ? null
-                  : Number(e.target.value)
-              : key === "vin"
-                ? e.target.value.toUpperCase()
-                : e.target.value,
-            )
-          }
-        />
-        {errors[key] && (
-          <small className="field-error" id={`${key}-error`}>
-            {errors[key]}
-          </small>
-        )}
+      <div className="desk-resume">
+        <CarFront size={28} aria-hidden="true" />
+        <p className="eyebrow">Your saved progress</p>
+        <h2>{vehicleTitle(form) || "Your vehicle review"}</h2>
+        <p>
+          Your details are saved on this device. Pick up where you left off.
+        </p>
+        <Link className="button button-primary" href="/check">
+          Continue your check <ArrowRight size={18} />
+        </Link>
+        <Link className="text-link" href="/check?new=1">
+          Start with another car
+        </Link>
       </div>
     );
-  }
-  function select(
-    key:
-      | "sellerType"
-      | "accidentHistoryMentioned"
-      | "rebuiltStatus"
-      | "carfaxStatus"
-      | "inspectionAllowed"
-      | "maintenanceRecords",
-    label: string,
-    options: [string, string][],
-  ) {
-    return (
-      <div className="review-field" key={key}>
-        <label htmlFor={key}>
-          <span>{label}</span>
-          {status(key)}
-        </label>
-        <select
-          id={key}
-          value={form[key]}
-          onChange={(e) =>
-            update(key, e.target.value as VehicleIntake[typeof key])
-          }
-        >
-          <option value="unknown">Unknown / not stated</option>
-          {options.map(([v, l]) => (
-            <option key={v} value={v}>
-              {l}
-            </option>
-          ))}
-        </select>
-      </div>
-    );
-  }
-  if (!ready) return <p role="status">Preparing your listing...</p>;
   return (
-    <div className="intake-shell">
-      <ProgressSteps current={step} />
+    <div
+      className={`intake-shell dossier-review ${step === 2 ? "dossier-choice" : "phase-one"} ${landing ? "landing-intake" : ""}`}
+    >
+      {!landing && (
+        <ProgressSteps current={step} variant={step < 2 ? "desk" : undefined} />
+      )}
       <div className="flow-layout">
         <div className="flow-main">
           <div className="form-head">
@@ -403,18 +362,22 @@ export function VehicleIntakeFlow() {
                   ? "Vehicle review"
                   : "Your next step"}
             </p>
-            <h1 ref={heading} tabIndex={-1}>
+            <Heading ref={heading} tabIndex={-1}>
               {step === 0
-                ? "Add the car listing"
+                ? landing
+                  ? "Start with the listing."
+                  : "Paste the car you’re considering."
                 : step === 1
-                  ? "Here's what we found"
+                  ? "Review the listing."
                   : "Choose your buyer report"}
-            </h1>
+            </Heading>
             <p>
               {step === 0
-                ? "Paste the ad text to extract the details we can. Add a link or screenshots for reference, or enter details yourself."
+                ? landing
+                  ? "Paste the ad or a link. You’ll review the details next."
+                  : "Use the listing text or a public link. You’ll review the details before choosing a report."
                 : step === 1
-                  ? "Confirm the details before we analyze the listing. Seller statements are claims, not verified facts."
+                  ? "Check the details before continuing. Seller statements remain unverified."
                   : vehicleTitle(form)}
             </p>
           </div>
@@ -432,210 +395,20 @@ export function VehicleIntakeFlow() {
             </div>
           )}
           {notice && (
-            <p className="notice" role="status">
+            <p
+              className={`notice ${urlStatus === "retrieving" || finalizing ? "desk-busy" : ""}`}
+              role="status"
+            >
+              {(urlStatus === "retrieving" || finalizing) && (
+                <LoaderCircle size={18} aria-hidden="true" />
+              )}
               {notice}
             </p>
           )}
-          {step === 0 && (
-            <form onSubmit={provide} noValidate>
-              <div className="input-methods" aria-label="Listing input method">
-                {methods.map((m) => (
-                  <button
-                    type="button"
-                    aria-pressed={method === m.id}
-                    className={method === m.id ? "active" : ""}
-                    onClick={() => {
-                      setMethod(m.id);
-                      setErrors({});
-                    }}
-                    key={m.id}
-                  >
-                    <m.icon size={21} aria-hidden="true" />
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-              {method === "text" && (
-                <label>
-                  Listing text
-                  <textarea
-                    rows={9}
-                    maxLength={20000}
-                    value={form.listingText}
-                    onChange={(e) => update("listingText", e.target.value)}
-                    placeholder="2015 Honda Civic EX, 165,000 km, $8,500. Montreal. Private seller. Carfax available. Inspection welcome..."
-                  />
-                  <small>
-                    Include the price, mileage and seller notes. Leave out
-                    unnecessary personal details.
-                  </small>
-                </label>
-              )}
-              {method === "url" && (
-                <>
-                  <label>
-                    Listing URL
-                    <input
-                      type="url"
-                      value={form.listingUrl}
-                      onChange={(e) => update("listingUrl", e.target.value)}
-                      placeholder="https://www.facebook.com/marketplace/item/..."
-                    />
-                  </label>
-                  <p className="notice">
-                    AutoCheck will securely retrieve the public listing on the
-                    server and pre-fill what the page exposes. Protected pages
-                    may still require pasted ad text.
-                  </p>
-                </>
-              )}
-              {method === "images" && (
-                <>
-                  <label className="upload-zone">
-                    <ImagePlus size={32} aria-hidden="true" />
-                    <span>Add listing screenshots or photos</span>
-                    <small>JPG, PNG or WebP. Up to 6 files, 10 MB each.</small>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      multiple
-                      onChange={files}
-                    />
-                  </label>
-                  <p className="notice">
-                    Image contents are not read or uploaded in this preview.
-                    Only file names, sizes and types are retained. Paste the
-                    text shown in the images or enter it in the review.
-                  </p>
-                  <div className="file-list">
-                    {form.photos.map((p, i) => (
-                      <div key={`${p.name}-${i}`}>
-                        <span>
-                          {p.name}
-                          <small>{formatFileSize(p.size)}</small>
-                        </span>
-                        <button
-                          className="icon-button"
-                          type="button"
-                          title={`Remove ${p.name}`}
-                          aria-label={`Remove ${p.name}`}
-                          onClick={() =>
-                            update(
-                              "photos",
-                              form.photos.filter((_, j) => j !== i),
-                            )
-                          }
-                        >
-                          <X size={18} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-              {method === "manual" && (
-                <div className="manual-note">
-                  <PenLine size={28} aria-hidden="true" />
-                  <h2>No ad text available?</h2>
-                  <p>
-                    Enter what you know about the car. Anything you leave
-                    unknown becomes a question to ask the seller.
-                  </p>
-                </div>
-              )}
-              {form.listingUrl && method !== "url" && (
-                <p className="saved-link">
-                  <Link2 size={16} aria-hidden="true" />
-                  Saved link: <span>{form.listingUrl}</span>
-                </p>
-              )}
-              <div className="form-actions">
-                <button
-                  className="button button-primary"
-                  type="submit"
-                  disabled={urlStatus === "retrieving"}
-                >
-                  {method === "manual" ||
-                  (method === "images" && !form.listingText)
-                    ? "Review Vehicle Details"
-                    : method === "url" && !form.listingText
-                      ? urlStatus === "retrieving"
-                        ? "Reading listing..."
-                        : "Read Listing"
-                      : "Extract Vehicle Details"}
-                  <ArrowRight size={18} aria-hidden="true" />
-                </button>
-              </div>
-            </form>
-          )}
           {step === 1 && (
             <form onSubmit={review} noValidate>
-              <p className="notice">
-                {found.length
-                  ? `${found.length} fields found in the ad. `
-                  : "No vehicle details were extracted. "}
-                Missing details may stay unknown. Make and model are required to
-                identify the vehicle.
-              </p>
-              <fieldset>
-                <legend>01 / Vehicle identity</legend>
-                <div className="form-grid">
-                  {field("make", "Make")}
-                  {field("model", "Model")}
-                  {field("year", "Year", true)}
-                  {field("trim", "Trim")}
-                </div>
-              </fieldset>
-              <fieldset>
-                <legend>02 / The listing</legend>
-                <div className="form-grid">
-                  {field("mileageKm", "Mileage (km)", true)}
-                  {field("askingPriceCad", "Asking price (CAD)", true)}
-                  {field("priceCurrency", "Price currency")}
-                  {field("city", "City")}
-                  {field("location", "Listing location")}
-                  {field("vin", "VIN")}
-                </div>
-              </fieldset>
-              <fieldset>
-                <legend>03 / Source details</legend>
-                <div className="form-grid">
-                  {field("listingTitle", "Listing title")}
-                  {field("sellerName", "Seller / dealer")}
-                  {field("transmission", "Transmission")}
-                  {field("drivetrain", "Drivetrain")}
-                  {field("engine", "Engine")}
-                </div>
-              </fieldset>
-              <fieldset>
-                <legend>04 / Seller claims</legend>
-                <div className="form-grid">
-                  {select("sellerType", "Seller type", [
-                    ["private", "Private seller"],
-                    ["dealer", "Dealer"],
-                  ])}
-                  {select("carfaxStatus", "Carfax", [
-                    ["available", "Seller says available"],
-                    ["not_available", "Not available"],
-                  ])}
-                  {select("accidentHistoryMentioned", "Accident history", [
-                    ["yes", "Accident reported"],
-                    ["no", "Seller says no accidents"],
-                  ])}
-                  {select("rebuiltStatus", "Rebuilt / salvage status", [
-                    ["yes", "Rebuilt or salvage reported"],
-                    ["no", "Seller says not rebuilt / salvage"],
-                  ])}
-                  {select("inspectionAllowed", "Independent inspection", [
-                    ["yes", "Allowed"],
-                    ["no", "Refused"],
-                  ])}
-                  {select("maintenanceRecords", "Maintenance records", [
-                    ["yes", "Seller says available"],
-                    ["no", "Not available"],
-                  ])}
-                </div>
-              </fieldset>
+              <p className="review-context">Make and model are required. Leave anything you don’t know blank. Open a row to edit its details.</p>
+              <VehicleReviewEvidence form={form} found={found} uncertain={uncertain} errors={errors} update={update} />
               <label>
                 Notes or concerns (optional)
                 <textarea
@@ -658,15 +431,26 @@ export function VehicleIntakeFlow() {
                   <ArrowLeft size={18} />
                   Back
                 </button>
-                <button className="button button-primary" type="submit" disabled={finalizing}>
-                  {finalizing ? "Saving reviewed listing..." : "Confirm & Continue"}
+                <button
+                  className="button button-primary"
+                  type="submit"
+                  disabled={finalizing}
+                >
+                  {finalizing
+                    ? "Saving reviewed listing..."
+                    : "Confirm & Continue"}
                   <ArrowRight size={18} />
                 </button>
               </div>
+              <p className="desk-next">
+                Next: choose a Free Quick Check or Full Buyer Report preview. No
+                payment is collected.
+              </p>
             </form>
           )}
           {step === 2 && (
             <>
+              <VehicleIdentityPlate vehicle={form} compact stateLabel="REVIEWED DETAILS · NOT VERIFIED" />
               <PricingCards
                 onSelect={(type) => {
                   saveIntake({
@@ -692,20 +476,37 @@ export function VehicleIntakeFlow() {
             </>
           )}
         </div>
-        <aside className="flow-sidebar">
-          <ShieldCheck size={28} aria-hidden="true" />
-          <h2>A clearer picture before you commit.</h2>
-          <p>
-            Start with what the seller shared. Keep the unknowns visible. Verify
-            before buying.
-          </p>
-          <hr />
-          <h3>Your listing, your control</h3>
-          <p>No account required. Your draft stays on this device.</p>
-          <a href="/example-report" className="text-link">
-            See an example report <ArrowRight size={16} />
-          </a>
-        </aside>
+        {!landing && (
+          <aside className="flow-sidebar">
+            <VehicleIdentityPlate vehicle={form} title={!form.make && !form.model ? "Your vehicle" : undefined} compact stateLabel="YOUR LISTING · REVIEW IN PROGRESS" />
+            <ShieldCheck size={28} aria-hidden="true" />
+            <h2>Good decisions start with clear information.</h2>
+            <p>
+              Start with what the seller shared. Keep the unknowns visible.
+              Verify before buying.
+            </p>
+            <hr />
+            <ol className="desk-guidance">
+              <li>
+                <strong>What we know</strong>
+                <span>The details you bring from the listing.</span>
+              </li>
+              <li>
+                <strong>What’s unresolved</strong>
+                <span>Missing details and claims to confirm.</span>
+              </li>
+              <li>
+                <strong>What to do next</strong>
+                <span>Choose a report, then decide what to investigate.</span>
+              </li>
+            </ol>
+            <h3>Your listing, your control</h3>
+            <p>No account required. Your draft stays on this device.</p>
+            <a href="/example-report" className="text-link">
+              See an example report <ArrowRight size={16} />
+            </a>
+          </aside>
+        )}
       </div>
     </div>
   );

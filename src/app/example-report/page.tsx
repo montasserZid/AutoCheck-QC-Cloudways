@@ -35,7 +35,7 @@ export default function ExampleReportPage() {
             </p>
           </details>
         </div>
-        <ReportView report={report} example />
+        <ReportView report={report} vehicle={demoVehicleIntake} example />
       </Container>
     </main>
   );

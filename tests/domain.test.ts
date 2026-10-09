@@ -1661,6 +1661,36 @@ test("booking rejects past times, malformed dates and invalid contacts", () => {
     ).length >= 3,
   );
 });
+test("failed storage writes keep the newest draft ahead of readable stale data", () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "window");
+  let raw = JSON.stringify({ step: 0, method: "text" });
+  let quotaExceeded = true;
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { localStorage: {
+      getItem: () => raw,
+      setItem: (_key: string, value: string) => {
+        if (quotaExceeded) throw new Error("QuotaExceededError");
+        raw = value;
+      },
+    } },
+  });
+  try {
+    const draft = { step: 1, method: "manual" };
+    assert.equal(writeLocal("intake-draft", draft), false);
+    assert.deepEqual(readLocal("intake-draft"), draft);
+    assert.equal(JSON.parse(raw).step, 0);
+    quotaExceeded = false;
+    assert.equal(writeLocal("intake-draft", draft), true);
+    raw = JSON.stringify({ step: 2, method: "manual" });
+    assert.deepEqual(readLocal("intake-draft"), { step: 2, method: "manual" });
+  } finally {
+    clearLocalData();
+    if (original) Object.defineProperty(globalThis, "window", original);
+    else Reflect.deleteProperty(globalThis, "window");
+  }
+});
+
 test("storage denial is handled without crashing", () => {
   const original = Object.getOwnPropertyDescriptor(globalThis, "window");
   Object.defineProperty(globalThis, "window", {

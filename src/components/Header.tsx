@@ -8,7 +8,7 @@ export function Header() {
   const [open, setOpen] = useState(false);
   const path = usePathname();
   return (
-    <header className="site-header">
+    <header className="site-header desk-header">
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>

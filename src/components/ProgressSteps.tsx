@@ -1,6 +1,15 @@
-export function ProgressSteps({ current }: { current: number }) {
+export function ProgressSteps({
+  current,
+  variant,
+}: {
+  current: number;
+  variant?: "desk";
+}) {
   return (
-    <ol className="progress-steps" aria-label="Report progress">
+    <ol
+      className={`progress-steps${variant === "desk" ? " desk-progress" : ""}`}
+      aria-label="Report progress"
+    >
       {["Add listing", "Review vehicle", "Choose report", "See result"].map(
         (label, index) => (
           <li

@@ -8,8 +8,12 @@ import { emptyIntake } from "./listingExtraction";
 import type { SubmittedIntakeContext } from "./intakeFinalization";
 const prefix = "autocheck-qc:v2:";
 const memory = new Map<string, unknown>();
+const failedWrites = new Set<string>();
 export function readLocal<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
+  // A readable stored value may predate a failed write (for example, quota
+  // exceeded). Keep the latest in-tab value across client-side navigation.
+  if (failedWrites.has(key)) return (memory.get(key) as T) ?? null;
   try {
     const raw = window.localStorage.getItem(prefix + key);
     return raw ? (JSON.parse(raw) as T) : ((memory.get(key) as T) ?? null);
@@ -21,13 +25,16 @@ export function writeLocal<T>(key: string, value: T): boolean {
   memory.set(key, value);
   try {
     window.localStorage.setItem(prefix + key, JSON.stringify(value));
+    failedWrites.delete(key);
     return true;
   } catch {
+    failedWrites.add(key);
     return false;
   }
 }
 export function removeLocal(key: string): boolean {
   memory.delete(key);
+  failedWrites.delete(key);
   try {
     window.localStorage.removeItem(prefix + key);
     return true;
@@ -69,6 +76,7 @@ export const getStoredInspectionRequest = () =>
   readLocal<InspectionRequest>("inspection");
 export function clearLocalData(): boolean {
   memory.clear();
+  failedWrites.clear();
   try {
     for (const key of Object.keys(window.localStorage))
       if (key.startsWith("autocheck-qc:")) window.localStorage.removeItem(key);

@@ -2,233 +2,159 @@ import Link from "next/link";
 import {
   ArrowRight,
   ArrowUpRight,
-  ShieldCheck,
-  Search,
-  MessageSquareText,
-  Wrench,
+  CarFront,
   FileSearch,
+  MessageSquareText,
   MapPin,
-  Check,
+  ShieldCheck,
+  Wrench,
 } from "lucide-react";
 import { Container } from "@/components/Container";
+import { VehicleIntakeFlow } from "@/components/VehicleIntakeFlow";
 import { PricingCards } from "@/components/PricingCards";
 import { faqItems } from "@/content/faq";
 import { officialSources } from "@/content/site";
+import { VehicleDrawing } from "@/components/dossier/VehicleDrawing";
+import dossier from "@/components/dossier/dossier.module.css";
+
 export default function Home() {
   return (
-    <main>
-      <section className="hero">
-        <Container className="hero-content">
-          <p className="eyebrow">
-            <MapPin size={15} aria-hidden="true" />
-            Built for Quebec used-car buyers
-          </p>
-          <h1>
-            Don&apos;t buy a<br />
-            used car blind.
-          </h1>
-          <p className="hero-description">
-            The ad tells one story.
-            <br />
-            <strong>Know what to ask next.</strong>
-          </p>
-          <p className="hero-support">
-            Paste the listing text. AutoCheck QC helps you spot red flags,
-            missing details and whether the car deserves a professional
-            inspection.
-          </p>
-          <div className="button-row">
-            <Link className="button button-primary" href="/check">
-              Check This Car
-              <ArrowUpRight size={20} />
-            </Link>
-            <Link className="button button-outline" href="/inspection">
-              Book a Mobile Inspection
-            </Link>
+    <main className="decision-desk">
+      <section className={`${dossier.proof} ${dossier.hero}`} aria-labelledby="desk-title">
+        <div className={dossier.heroInner}>
+          <div className={dossier.heroRegister}><span>THE BUYER’S VEHICLE DOSSIER</span><span>INDEPENDENT THINKING / QUÉBEC</span></div>
+          <div className={dossier.heroGrid}>
+          <div className={dossier.heroIntro}>
+            <h1 id="desk-title">
+              A used car.<br />A clearer picture.<br /><span>Your next move.</span>
+            </h1>
+            <p className={dossier.lead}>
+              Start with the listing. Bring the facts, the unknowns and the right questions into focus—before paying for an inspection.
+            </p>
+            <p className={dossier.boundary}>
+              Supports a professional inspection. Never replaces one.
+            </p>
+            <figure className={dossier.drawing}><VehicleDrawing /><figcaption className={dossier.drawingCaption}><span>LOOK CLOSER. ASK BETTER.</span><span>ILLUSTRATIVE VEHICLE</span></figcaption></figure>
           </div>
-          <Link className="hero-example" href="/example-report">
-            See Example Report
-            <ArrowRight size={17} />
-          </Link>
-          <div className="hero-trust">
-            <ShieldCheck size={17} />
-            <span>Pre-screen first. Inspect before buying.</span>
+          <div id="start-check">
+            <VehicleIntakeFlow landing />
           </div>
-        </Container>
-        <span className="hero-caption">
-          AUTOCHECK QC / MONTREAL & SURROUNDING AREAS
-        </span>
+          </div>
+          <div className={dossier.heroBottom}>
+            <p><strong><span>01</span>The listing, organized.</strong>Vehicle details with their source intact.</p>
+            <p><strong><span>02</span>The unknowns, visible.</strong>Seller claims stay claims. Gaps stay honest.</p>
+            <p><strong><span>03</span>The next step, clearer.</strong>Supports a professional inspection. Never replaces one.</p>
+          </div>
+        </div>
       </section>
-      <section className="platform-band">
+      <section className="desk-source-band" aria-label="Listing sources">
         <Container>
-          <p>Start with an ad from</p>
-          <div>
-            <span>Facebook Marketplace</span>
-            <span>Kijiji</span>
-            <span>AutoTrader</span>
-            <span>Private sellers</span>
-            <span>Dealers</span>
-          </div>
+          <span>Bring the ad you already have</span>
+          <p>
+            Facebook Marketplace <span>·</span> Kijiji <span>·</span> AutoTrader{" "}
+            <span>·</span> Private sellers & dealers
+          </p>
           <small>
-            Paste the ad text. Listing sources shown for reference, not as
-            partners.
+            Listing sources, not partners. Protected listings may need pasted
+            text.
           </small>
         </Container>
       </section>
-      <section className="section">
+      <section className="desk-section">
         <Container>
-          <div className="section-heading">
-            <p className="eyebrow">01 / A better starting point</p>
-            <h2>
-              From a listing to
-              <br />a clearer next step.
-            </h2>
-            <p>
-              Before the drive across town. Before the deposit. Before you
-              commit.
-            </p>
+          <div className="desk-section-head">
+            <p className="eyebrow">From uncertainty to a next step</p>
+            <h2>Three questions. A better starting point.</h2>
           </div>
-          <div className="process-grid">
+          <div className="desk-principles">
             {[
               {
-                icon: FileSearch,
-                title: "Give us the ad",
-                body: "Paste the listing text. Review the details we find and confirm anything missing.",
+                icon: CarFront,
+                n: "01",
+                title: "What do we know?",
+                text: "Bring the vehicle details together. Review what the ad says and correct anything that looks off.",
               },
               {
-                icon: Search,
-                title: "See what needs a closer look",
-                body: "Get listing concerns, document gaps and practical questions for the seller.",
+                icon: FileSearch,
+                n: "02",
+                title: "What’s unresolved?",
+                text: "Keep missing information and seller claims visible. Know which questions still need an answer.",
               },
               {
                 icon: Wrench,
-                title: "Decide what comes next",
-                body: "Ask more questions, move on, or take the next step with an independent inspection.",
+                n: "03",
+                title: "What should I do next?",
+                text: "Choose your report. Use its guidance to decide what to ask, verify or bring to a professional inspector.",
               },
-            ].map((s, i) => (
-              <article className="process-card" key={s.title}>
+            ].map(({ icon: Icon, n, title, text }) => (
+              <article key={n}>
                 <div>
-                  <s.icon size={28} />
-                  <span>0{i + 1}</span>
+                  <Icon size={24} aria-hidden="true" />
+                  <span>{n}</span>
                 </div>
-                <h3>{s.title}</h3>
-                <p>{s.body}</p>
+                <h3>{title}</h3>
+                <p>{text}</p>
               </article>
             ))}
           </div>
         </Container>
       </section>
-      <section className="section band">
-        <Container className="two-column">
-          <div className="section-heading">
-            <p className="eyebrow">02 / Look beyond the photos</p>
+      <section className="desk-section desk-example">
+        <Container className="desk-example-grid">
+          <div>
+            <p className="eyebrow">See the decision path</p>
             <h2>
-              A shiny car can still
+              Know what to ask.
               <br />
-              leave big questions.
+              Before you go.
             </h2>
             <p>
-              AutoCheck QC turns scattered ad details into the checks that
-              matter before your first visit.
+              A listing can look promising and still leave important questions.
+              Our full report preview turns those gaps into practical next
+              steps.
             </p>
-            <Link className="text-link" href="/check">
-              Check the listing in front of you
-              <ArrowRight size={18} />
+            <Link className="text-link" href="/example-report">
+              Explore the example report <ArrowUpRight size={17} />
             </Link>
           </div>
-          <div className="check-rows">
-            {[
-              [
-                "Listing red flags",
-                "Inspection refusal, reported damage and unanswered questions.",
-              ],
-              [
-                "Missing documents",
-                "VIN, history, maintenance and rebuilt-status information.",
-              ],
-              [
-                "Model verification checklist",
-                "Areas to check for the model, its mileage and Quebec conditions.",
-              ],
-              [
-                "A practical decision path",
-                "Seller questions, negotiation points and an inspection recommendation.",
-              ],
-            ].map(([h, p]) => (
-              <div key={h}>
-                <Check size={20} />
-                <div>
-                  <h3>{h}</h3>
-                  <p>{p}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Container>
-      </section>
-      <section className="section">
-        <Container className="two-column example-section">
-          <div className="section-heading">
-            <p className="eyebrow">03 / See what you get</p>
-            <h2>
-              More than a score.
-              <br />A plan for the seller.
-            </h2>
-            <p>
-              A believable listing. Real questions to resolve. Explore the full
-              example before checking your own car.
-            </p>
-            <Link className="button button-secondary" href="/example-report">
-              Explore the Example Report
-              <ArrowUpRight size={18} />
-            </Link>
-          </div>
-          <article className="report-preview">
-            <div className="preview-top">
-              <span>
-                <ShieldCheck size={18} />
-                AUTOCHECK QC
-              </span>
-              <span>EXAMPLE</span>
+          <article className="desk-example-card">
+            <div className="desk-example-top">
+              <span>ILLUSTRATIVE EXAMPLE</span>
+              <CarFront size={22} aria-hidden="true" />
             </div>
             <h3>2017 Mazda3 GS</h3>
-            <p>
-              168,000 km <span>/</span> $8,900 CAD <span>/</span> Laval
-            </p>
-            <div className="preview-decision">
-              <span className="badge medium">Medium listing risk</span>
+            <p>168,000 km · $8,900 CAD · Laval</p>
+            <div className="desk-example-decision">
+              <span className="desk-state">Questions to resolve</span>
               <h4>Ask more questions</h4>
               <p>
                 Inspection is welcome. VIN and service history still need
                 confirmation.
               </p>
             </div>
-            <div className="preview-question">
-              <MessageSquareText size={22} />
+            <div className="desk-example-question">
+              <MessageSquareText size={21} aria-hidden="true" />
               <div>
-                <strong>Your first question</strong>
+                <strong>Start with the seller</strong>
                 <p>
-                  Could you send the complete VIN and a current vehicle history
-                  report?
+                  “Could you send the complete VIN and a current vehicle history
+                  report?”
                 </p>
               </div>
             </div>
-            <Link className="text-link" href="/example-report">
-              Read the full decision path
-              <ArrowRight size={16} />
-            </Link>
           </article>
         </Container>
       </section>
-      <section className="section band">
+      <section className="desk-section">
         <Container>
-          <div className="section-heading">
-            <p className="eyebrow">04 / Choose your level of detail</p>
-            <h2>
-              Start free. Look closer
-              <br />
-              when the car looks promising.
-            </h2>
+          <div className="desk-section-head">
+            <p className="eyebrow">Choose after reviewing your vehicle</p>
+            <h2>The right level of detail for your next step.</h2>
+            <p>
+              The Free Quick Check shows available historical model-year
+              information. The Full Buyer Report is a rules-based preview with
+              listing concerns and a buyer checklist.
+            </p>
           </div>
           <PricingCards />
           <p className="fine-print">
@@ -237,120 +163,60 @@ export default function Home() {
           </p>
         </Container>
       </section>
-      <section className="section">
-        <Container className="two-column">
-          <div className="section-heading">
-            <p className="eyebrow">Spend your attention wisely</p>
-            <h2>
-              Inspect the right car.
-              <br />
-              Not every car.
-            </h2>
-          </div>
-          <div className="editorial-copy">
-            <p>
-              A professional inspection can cost significantly more than a
-              listing pre-screen. When you are comparing several cars, start by
-              finding out which seller can answer the important questions.
-            </p>
-            <p>
-              Resolve missing documents and inspection permission first. Then
-              bring a focused checklist to the professional who will assess the
-              actual vehicle.
-            </p>
-            <p className="inline-note">
-              <ShieldCheck size={20} />A pre-screen never replaces a mechanical
-              inspection.
-            </p>
-          </div>
-        </Container>
-      </section>
-      <section className="section quebec-band">
-        <Container>
-          <div className="section-heading">
-            <p className="eyebrow">Built around buying in Quebec</p>
-            <h2>
-              Local context.
-              <br />
-              Independent verification.
-            </h2>
-            <p>
-              Montreal, Laval, Longueuil, Brossard and the surrounding areas.
-            </p>
-          </div>
-          <div className="resource-grid">
-            <article>
-              <MapPin size={25} />
-              <h3>Look underneath</h3>
-              <p>
-                Ask for a proper rust assessment of the underbody, brake lines
-                and suspension mounts. Exterior photos are only part of the
-                picture.
-              </p>
-            </article>
-            <article>
-              <FileSearch size={25} />
-              <h3>Check the documents</h3>
-              <p>
-                Use official resources for vehicle transfer, purchase guidance
-                and the checks applicable to your situation.
-              </p>
-              <div className="resource-links">
-                {officialSources.map((s) => (
-                  <a
-                    key={s.href}
-                    href={s.href}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {s.label}
-                    <ArrowUpRight size={15} />
-                  </a>
-                ))}
-              </div>
-            </article>
-            <article>
-              <ShieldCheck size={25} />
-              <h3>Verify seller claims</h3>
-              <p>
-                A mention of Carfax is not a history check. AutoCheck QC does
-                not retrieve Carfax, RDPRM or SAAQ results.
-              </p>
-            </article>
-          </div>
-        </Container>
-      </section>
-      <section className="section inspection-cta">
-        <Container>
+      <section className="desk-section desk-local">
+        <Container className="desk-example-grid">
           <div>
-            <p className="eyebrow">The next step, when you are ready</p>
+            <p className="eyebrow">
+              <MapPin size={15} aria-hidden="true" /> Quebec context
+            </p>
             <h2>
-              Put an independent
-              <br />
-              inspection on your checklist.
+              A little preparation.
+              <br />A more informed visit.
             </h2>
             <p>
-              Prepare the vehicle, location and preferred time in one request.
+              From Montreal to Laval, Longueuil and beyond: ask about rust,
+              request service records, and leave the mechanical assessment to a
+              qualified professional.
             </p>
+            <Link className="text-link" href="/inspection">
+              Prepare an inspection request <ArrowRight size={17} />
+            </Link>
           </div>
-          <Link className="button button-primary" href="/inspection">
-            Book a Mobile Inspection
-            <ArrowUpRight size={19} />
-          </Link>
+          <div className="desk-boundaries">
+            <ShieldCheck size={26} aria-hidden="true" />
+            <h3>Clear about what we can tell you.</h3>
+            <p>
+              Seller statements remain claims. AutoCheck does not independently
+              check actual condition, market value, Carfax, RDPRM or SAAQ
+              results.
+            </p>
+            <p>
+              Use official resources and an independent inspection before
+              buying.
+            </p>
+            <div className="resource-links">
+              {officialSources.map((source) => (
+                <a
+                  key={source.href}
+                  href={source.href}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {source.label}
+                  <ArrowUpRight size={15} />
+                </a>
+              ))}
+            </div>
+          </div>
         </Container>
       </section>
-      <section className="section">
-        <Container className="two-column">
-          <div className="section-heading">
-            <p className="eyebrow">Good questions</p>
-            <h2>
-              Know what the
-              <br />
-              report can tell you.
-            </h2>
+      <section className="desk-section">
+        <Container className="desk-example-grid">
+          <div>
+            <p className="eyebrow">Before you start</p>
+            <h2>A few good questions.</h2>
             <Link className="text-link" href="/faq">
-              All questions
-              <ArrowRight size={18} />
+              Read all FAQs <ArrowRight size={17} />
             </Link>
           </div>
           <div className="faq-list">
@@ -363,19 +229,15 @@ export default function Home() {
           </div>
         </Container>
       </section>
-      <section className="section final-cta">
+      <section className="desk-bottom">
         <Container>
-          <p className="eyebrow">AUTOCHECK QC</p>
-          <h2>
-            The next car you check
-            <br />
-            could be the one.
-          </h2>
-          <p>Start with the listing. Keep your questions in front of you.</p>
-          <Link className="button button-primary" href="/check">
-            Check This Car
-            <ArrowUpRight size={20} />
-          </Link>
+          <div>
+            <p className="eyebrow">Start with the car in front of you</p>
+            <h2>You don’t need every answer yet.</h2>
+          </div>
+          <a className="button button-primary" href="#start-check">
+            Add your listing <ArrowRight size={18} />
+          </a>
         </Container>
       </section>
     </main>

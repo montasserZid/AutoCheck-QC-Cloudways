@@ -13,8 +13,7 @@ export default function TermsPage() {
         <div className="page-heading">
           <p className="eyebrow">Terms and limitations</p>
           <h1>
-            A clearer starting point.
-            <br />
+            A clearer starting point. <br />
             Not a guarantee.
           </h1>
         </div>
@@ -38,9 +37,9 @@ export default function TermsPage() {
             <p>
               No payment is collected. Prices describe planned services. Full
               reports can be viewed, but human review and live inspection
-              booking are not available. Saved inspection requests and contact
-              messages are not transmitted, and do not reserve appointments or
-              trigger follow-up.
+              booking are not available. Saved inspection requests are not
+              transmitted and do not reserve appointments or trigger follow-up.
+              Contact messages are sent to AutoCheck QC for support review.
             </p>
           </section>
           <section>
